@@ -14,16 +14,260 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          last_message: string | null
+          last_message_at: string | null
+          user_a: string
+          user_b: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message?: string | null
+          last_message_at?: string | null
+          user_a: string
+          user_b: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message?: string | null
+          last_message_at?: string | null
+          user_a?: string
+          user_b?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+          read_at: string | null
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      preferences: {
+        Row: {
+          created_at: string
+          max_age: number
+          min_age: number
+          open_to_long_distance: boolean
+          preferred_gender: Database["public"]["Enums"]["gender_t"] | null
+          preferred_hobbies: string[] | null
+          preferred_languages: string[] | null
+          preferred_regions: string[] | null
+          preferred_relationship_goal:
+            | Database["public"]["Enums"]["relationship_goal_t"]
+            | null
+          preferred_tribes: string[] | null
+          tribe_importance:
+            | Database["public"]["Enums"]["tribe_importance_t"]
+            | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          max_age?: number
+          min_age?: number
+          open_to_long_distance?: boolean
+          preferred_gender?: Database["public"]["Enums"]["gender_t"] | null
+          preferred_hobbies?: string[] | null
+          preferred_languages?: string[] | null
+          preferred_regions?: string[] | null
+          preferred_relationship_goal?:
+            | Database["public"]["Enums"]["relationship_goal_t"]
+            | null
+          preferred_tribes?: string[] | null
+          tribe_importance?:
+            | Database["public"]["Enums"]["tribe_importance_t"]
+            | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          max_age?: number
+          min_age?: number
+          open_to_long_distance?: boolean
+          preferred_gender?: Database["public"]["Enums"]["gender_t"] | null
+          preferred_hobbies?: string[] | null
+          preferred_languages?: string[] | null
+          preferred_regions?: string[] | null
+          preferred_relationship_goal?:
+            | Database["public"]["Enums"]["relationship_goal_t"]
+            | null
+          preferred_tribes?: string[] | null
+          tribe_importance?:
+            | Database["public"]["Enums"]["tribe_importance_t"]
+            | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profile_likes: {
+        Row: {
+          created_at: string
+          from_user_id: string
+          id: string
+          status: Database["public"]["Enums"]["like_status_t"]
+          to_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          from_user_id: string
+          id?: string
+          status?: Database["public"]["Enums"]["like_status_t"]
+          to_user_id: string
+        }
+        Update: {
+          created_at?: string
+          from_user_id?: string
+          id?: string
+          status?: Database["public"]["Enums"]["like_status_t"]
+          to_user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          date_of_birth: string | null
+          display_name: string | null
+          education: string | null
+          gender: Database["public"]["Enums"]["gender_t"] | null
+          hobbies: string[] | null
+          id: string
+          languages: string[] | null
+          last_active: string
+          lifestyle: string[] | null
+          nationality: string | null
+          occupation: string | null
+          photos: string[] | null
+          profile_completed: boolean
+          region: string | null
+          relationship_goal:
+            | Database["public"]["Enums"]["relationship_goal_t"]
+            | null
+          religion: string | null
+          town: string | null
+          tribe: string | null
+          updated_at: string
+          verified: boolean
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          display_name?: string | null
+          education?: string | null
+          gender?: Database["public"]["Enums"]["gender_t"] | null
+          hobbies?: string[] | null
+          id: string
+          languages?: string[] | null
+          last_active?: string
+          lifestyle?: string[] | null
+          nationality?: string | null
+          occupation?: string | null
+          photos?: string[] | null
+          profile_completed?: boolean
+          region?: string | null
+          relationship_goal?:
+            | Database["public"]["Enums"]["relationship_goal_t"]
+            | null
+          religion?: string | null
+          town?: string | null
+          tribe?: string | null
+          updated_at?: string
+          verified?: boolean
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          display_name?: string | null
+          education?: string | null
+          gender?: Database["public"]["Enums"]["gender_t"] | null
+          hobbies?: string[] | null
+          id?: string
+          languages?: string[] | null
+          last_active?: string
+          lifestyle?: string[] | null
+          nationality?: string | null
+          occupation?: string | null
+          photos?: string[] | null
+          profile_completed?: boolean
+          region?: string | null
+          relationship_goal?:
+            | Database["public"]["Enums"]["relationship_goal_t"]
+            | null
+          religion?: string | null
+          town?: string | null
+          tribe?: string | null
+          updated_at?: string
+          verified?: boolean
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_conv_participant: {
+        Args: { _conv: string; _uid: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      gender_t: "male" | "female" | "non_binary" | "other"
+      like_status_t: "pending" | "matched" | "rejected"
+      relationship_goal_t:
+        | "serious"
+        | "marriage"
+        | "friendship"
+        | "casual"
+        | "open"
+      tribe_importance_t:
+        | "very_important"
+        | "somewhat_important"
+        | "not_important"
+        | "open_to_all"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +394,22 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      gender_t: ["male", "female", "non_binary", "other"],
+      like_status_t: ["pending", "matched", "rejected"],
+      relationship_goal_t: [
+        "serious",
+        "marriage",
+        "friendship",
+        "casual",
+        "open",
+      ],
+      tribe_importance_t: [
+        "very_important",
+        "somewhat_important",
+        "not_important",
+        "open_to_all",
+      ],
+    },
   },
 } as const
