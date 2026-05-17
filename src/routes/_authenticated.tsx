@@ -44,7 +44,7 @@ function AuthGate() {
   }
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-28">
       <Outlet />
       {!pathname.startsWith("/onboarding") && <BottomNav />}
     </div>

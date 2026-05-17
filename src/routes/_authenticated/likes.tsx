@@ -57,48 +57,54 @@ function Likes() {
   const list = tab === "received" ? received : tab === "sent" ? sent : matches;
 
   return (
-    <div>
-      <header className="px-5 pt-6 pb-3">
-        <h1 className="font-display text-3xl font-bold">Connections</h1>
+    <div className="mx-auto max-w-2xl">
+      <header className="px-5 pt-8 pb-4">
+        <p className="text-[10px] font-medium tracking-[0.22em] uppercase text-muted-foreground">Your circle</p>
+        <h1 className="mt-1 font-display text-5xl font-medium leading-none">Connections</h1>
       </header>
       <div className="px-5">
-        <div className="inline-flex rounded-full bg-secondary p-1">
+        <div className="inline-flex rounded-full bg-card border hairline p-1">
           {(["matches", "received", "sent"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`rounded-full px-4 py-1.5 text-xs font-semibold capitalize transition ${
-                tab === t ? "bg-primary text-primary-foreground shadow-soft" : "text-muted-foreground"
+              className={`rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-wider transition ${
+                tab === t ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {t === "matches" ? `Matches (${matches.length})` : t === "received" ? `Likes you (${received.length})` : `You liked (${sent.length})`}
+              {t === "matches" ? `Matches · ${matches.length}` : t === "received" ? `Likes · ${received.length}` : `Sent · ${sent.length}`}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="mx-auto max-w-2xl px-4 pt-4 grid grid-cols-2 gap-3 pb-6">
+      <div className="px-4 pt-5 grid grid-cols-2 gap-3 pb-32">
         {loading ? (
-          Array.from({ length: 4 }).map((_, i) => <div key={i} className="aspect-[3/4] rounded-3xl bg-muted animate-pulse" />)
+          Array.from({ length: 4 }).map((_, i) => <div key={i} className="aspect-[3/4] rounded-3xl bg-card border hairline animate-pulse" />)
         ) : list.length === 0 ? (
-          <div className="col-span-2 text-center py-16">
-            <Heart className="h-10 w-10 text-muted-foreground/50 mx-auto" />
-            <p className="mt-3 text-sm text-muted-foreground">
-              {tab === "received" ? "No one has liked you yet — keep your profile fresh!" : tab === "sent" ? "You haven't liked anyone yet." : "No mutual matches yet — send some likes!"}
+          <div className="col-span-2 text-center py-20 px-6">
+            <div className="mx-auto h-14 w-14 rounded-full border hairline grid place-items-center">
+              <Heart className="h-5 w-5 text-primary" />
+            </div>
+            <p className="mt-5 font-display text-2xl leading-tight">
+              {tab === "received" ? "No likes yet." : tab === "sent" ? "Nothing sent yet." : "No matches yet."}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">
+              {tab === "received" ? "Keep your profile fresh — first impressions matter." : tab === "sent" ? "Discover people you'd love to meet." : "Send some likes to spark a connection."}
             </p>
           </div>
         ) : list.map((p) => (
-          <Link key={p.id} to="/profile/$id" params={{ id: p.id }} className="relative aspect-[3/4] rounded-3xl overflow-hidden bg-card shadow-card border border-border/50">
+          <Link key={p.id} to="/profile/$id" params={{ id: p.id }} className="group relative aspect-[3/4] rounded-3xl overflow-hidden bg-card shadow-card border hairline">
             {p.avatar_url ? (
-              <img src={p.avatar_url} alt={p.display_name ?? ""} className="absolute inset-0 h-full w-full object-cover" />
+              <img src={p.avatar_url} alt={p.display_name ?? ""} className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
             ) : (
-              <div className="absolute inset-0 bg-sunset" />
+              <div className="absolute inset-0 bg-ember grid place-items-center"><Heart className="h-8 w-8 text-primary/40" /></div>
             )}
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-white">
-              <div className="font-display font-bold leading-tight">
-                {p.display_name}{calcAge(p.date_of_birth) ? `, ${calcAge(p.date_of_birth)}` : ""}
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-3.5 pt-10 text-white">
+              <div className="font-display text-lg leading-tight">
+                {p.display_name}{calcAge(p.date_of_birth) ? <span className="text-white/70">, {calcAge(p.date_of_birth)}</span> : null}
               </div>
-              <div className="text-xs text-white/80">{p.town ?? "Namibia"}</div>
+              <div className="text-[11px] uppercase tracking-wider text-white/65 mt-0.5">{p.town ?? "Namibia"}</div>
             </div>
           </Link>
         ))}
