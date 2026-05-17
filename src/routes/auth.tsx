@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
-import { Heart } from "lucide-react";
+import { Heart, ArrowUpRight } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -70,24 +70,32 @@ function AuthPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="px-6 py-5">
-        <Link to="/" className="inline-flex items-center gap-2 font-display text-xl font-bold text-foreground">
-          <Heart className="h-5 w-5 text-primary fill-primary" />
-          NamFlirt
+      <header className="px-6 py-6 mx-auto max-w-6xl w-full">
+        <Link to="/" className="inline-flex items-center gap-2">
+          <div className="h-8 w-8 rounded-full bg-primary grid place-items-center shadow-glow">
+            <Heart className="h-4 w-4 fill-primary-foreground text-primary-foreground" />
+          </div>
+          <span className="font-display text-xl tracking-tight">NamFlirt</span>
         </Link>
       </header>
 
-      <main className="flex-1 flex items-center justify-center px-6 pb-12">
+      <main className="flex-1 flex items-center justify-center px-6 pb-16">
         <div className="w-full max-w-md">
-          <div className="rounded-3xl bg-card shadow-card border border-border/50 p-8">
-            <h1 className="font-display text-3xl font-bold text-balance">
-              {mode === "signup" ? "Welcome to NamFlirt" : "Welcome back"}
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {mode === "signup" ? "Create your account in seconds." : "Sign in to keep matching."}
+          <div className="text-center mb-8">
+            <p className="text-[11px] font-medium tracking-[0.2em] uppercase text-muted-foreground">
+              {mode === "signup" ? "Get started" : "Welcome back"}
             </p>
+            <h1 className="mt-3 font-display text-5xl font-medium text-balance leading-[1]">
+              {mode === "signup" ? (
+                <>Hello, <span className="italic font-light text-primary">stranger.</span></>
+              ) : (
+                <>Good to <span className="italic font-light text-primary">see you.</span></>
+              )}
+            </h1>
+          </div>
 
-            <form onSubmit={submit} className="mt-6 space-y-4">
+          <div className="rounded-3xl bg-card shadow-card border hairline p-7">
+            <form onSubmit={submit} className="space-y-4">
               {mode === "signup" && (
                 <Field
                   label="Display name"
@@ -117,19 +125,24 @@ function AuthPage() {
               <button
                 type="submit"
                 disabled={busy}
-                className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-soft hover:opacity-90 disabled:opacity-60"
+                className="group w-full flex items-center justify-between gap-2 rounded-full bg-primary pl-6 pr-2 py-2 text-sm font-semibold text-primary-foreground shadow-glow hover:opacity-95 disabled:opacity-60 transition"
               >
-                {busy ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}
+                <span>{busy ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}</span>
+                <span className="h-9 w-9 rounded-full bg-primary-foreground/15 grid place-items-center group-hover:translate-x-0.5 transition">
+                  <ArrowUpRight className="h-4 w-4" />
+                </span>
               </button>
             </form>
 
             <button
               onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
-              className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground"
+              className="mt-6 w-full text-center text-sm text-muted-foreground hover:text-foreground transition"
             >
-              {mode === "signup"
-                ? "Already have an account? Sign in"
-                : "New to NamFlirt? Create an account"}
+              {mode === "signup" ? (
+                <>Already have an account? <span className="text-foreground font-medium underline-offset-4 hover:underline">Sign in</span></>
+              ) : (
+                <>New here? <span className="text-foreground font-medium underline-offset-4 hover:underline">Create an account</span></>
+              )}
             </button>
           </div>
 
@@ -162,7 +175,7 @@ function Field({
         placeholder={placeholder}
         autoComplete={autoComplete}
         required
-        className="mt-1.5 w-full rounded-2xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+        className="mt-1.5 w-full rounded-2xl border border-input bg-background/50 px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition placeholder:text-muted-foreground/60"
       />
     </label>
   );
