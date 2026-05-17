@@ -84,28 +84,34 @@ function ConversationView() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-5rem)] md:h-[calc(100vh-2rem)] md:rounded-3xl md:border md:border-border md:bg-card md:my-4 md:overflow-hidden">
-      <header className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/95 backdrop-blur sticky top-0">
-        <Link to="/messages" className="md:hidden text-muted-foreground"><ChevronLeft className="h-5 w-5" /></Link>
+    <div className="flex flex-col h-[calc(100vh-5.5rem)] md:h-[calc(100vh-2rem)] md:rounded-[2rem] md:border md:hairline md:bg-card md:my-4 md:overflow-hidden">
+      <header className="flex items-center gap-3 px-4 py-3 border-b hairline bg-card/90 backdrop-blur sticky top-0 z-10">
+        <Link to="/messages" className="md:hidden text-muted-foreground rounded-full border hairline p-2 hover:text-foreground transition"><ChevronLeft className="h-4 w-4" /></Link>
         {other && (
           <Link to="/profile/$id" params={{ id: other.id }} className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="h-10 w-10 rounded-full bg-secondary overflow-hidden">
+            <div className="h-10 w-10 rounded-full bg-secondary overflow-hidden ring-1 ring-[oklch(1_0_0/0.08)]">
               {other.avatar_url ? <img src={other.avatar_url} alt="" className="h-full w-full object-cover" /> : null}
             </div>
-            <div className="font-display font-bold truncate">{other.display_name}</div>
+            <div>
+              <div className="font-display text-lg leading-none">{other.display_name}</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">View profile</div>
+            </div>
           </Link>
         )}
       </header>
 
-      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-5 space-y-2">
         {messages.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground py-12">Say hi 👋</p>
+          <div className="text-center py-16">
+            <p className="font-display text-2xl italic">Say hi 👋</p>
+            <p className="mt-2 text-sm text-muted-foreground">First impressions matter — be yourself.</p>
+          </div>
         ) : messages.map((m) => {
           const mine = m.sender_id === user?.id;
           return (
             <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm shadow-sm ${
-                mine ? "bg-primary text-primary-foreground rounded-br-md" : "bg-card border border-border rounded-bl-md"
+              <div className={`max-w-[75%] rounded-3xl px-4 py-2.5 text-sm leading-relaxed ${
+                mine ? "bg-primary text-primary-foreground rounded-br-md shadow-glow" : "bg-card border hairline rounded-bl-md"
               }`}>
                 {m.body}
               </div>
@@ -114,18 +120,18 @@ function ConversationView() {
         })}
       </div>
 
-      <form onSubmit={send} className="border-t border-border p-3 flex gap-2 bg-card">
+      <form onSubmit={send} className="border-t hairline p-3 flex gap-2 bg-card/80 backdrop-blur">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           maxLength={1000}
-          placeholder="Type a message..."
-          className="flex-1 rounded-full border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
+          placeholder="Write a message…"
+          className="flex-1 rounded-full border border-input bg-background/60 px-5 py-3 text-sm outline-none focus:border-primary transition placeholder:text-muted-foreground/60"
         />
         <button
           type="submit"
           disabled={busy || !text.trim()}
-          className="rounded-full bg-primary px-4 py-2.5 text-primary-foreground disabled:opacity-50"
+          className="rounded-full bg-primary px-4 py-3 text-primary-foreground disabled:opacity-50 shadow-glow"
         >
           <Send className="h-4 w-4" />
         </button>
