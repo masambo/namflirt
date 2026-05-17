@@ -77,16 +77,20 @@ function MessagesLayout() {
   return (
     <div className="md:flex md:gap-4 md:max-w-5xl md:mx-auto">
       <aside className={`md:w-80 md:shrink-0 ${inDetail ? "hidden md:block" : ""}`}>
-        <header className="px-5 pt-6 pb-3">
-          <h1 className="font-display text-3xl font-bold">Messages</h1>
+        <header className="px-5 pt-8 pb-4">
+          <p className="text-[10px] font-medium tracking-[0.22em] uppercase text-muted-foreground">Inbox</p>
+          <h1 className="mt-1 font-display text-5xl font-medium leading-none">Messages</h1>
         </header>
-        <div className="px-3">
+        <div className="px-3 pb-32">
           {loading ? (
             <p className="px-2 py-8 text-center text-sm text-muted-foreground">Loading…</p>
           ) : convs.length === 0 ? (
-            <div className="text-center py-16 px-4">
-              <MessageCircle className="h-10 w-10 text-muted-foreground/50 mx-auto" />
-              <p className="mt-3 text-sm text-muted-foreground">No conversations yet. Like someone and start chatting!</p>
+            <div className="text-center py-20 px-4">
+              <div className="mx-auto h-14 w-14 rounded-full border hairline grid place-items-center">
+                <MessageCircle className="h-5 w-5 text-primary" />
+              </div>
+              <p className="mt-5 font-display text-2xl leading-tight">No chats yet.</p>
+              <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">Like someone you're interested in to start a conversation.</p>
             </div>
           ) : (
             <ul className="space-y-1">
@@ -95,12 +99,12 @@ function MessagesLayout() {
                   <Link
                     to="/messages/$id"
                     params={{ id: c.id }}
-                    className="flex items-center gap-3 rounded-2xl px-3 py-3 hover:bg-secondary"
+                    className="flex items-center gap-3 rounded-2xl px-3 py-3 hover:bg-card transition border hairline border-transparent hover:border-[oklch(1_0_0/0.08)]"
                   >
                     <Avatar url={c.other?.avatar_url} name={c.other?.display_name} />
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold truncate">{c.other?.display_name ?? "User"}</div>
-                      <div className="text-sm text-muted-foreground truncate">{c.last_message ?? "Say hi!"}</div>
+                      <div className="font-display text-lg leading-tight truncate">{c.other?.display_name ?? "User"}</div>
+                      <div className="text-sm text-muted-foreground truncate mt-0.5">{c.last_message ?? "Say hi 👋"}</div>
                     </div>
                   </Link>
                 </li>
@@ -111,7 +115,7 @@ function MessagesLayout() {
       </aside>
 
       <main className={`flex-1 ${inDetail ? "" : "hidden md:flex md:items-center md:justify-center md:text-muted-foreground"}`}>
-        {inDetail ? <Outlet /> : <p className="hidden md:block">Pick a conversation to start chatting</p>}
+        {inDetail ? <Outlet /> : <p className="hidden md:block font-display italic text-xl">Pick a conversation.</p>}
       </main>
     </div>
   );
@@ -119,8 +123,8 @@ function MessagesLayout() {
 
 function Avatar({ url, name }: { url?: string | null; name?: string | null }) {
   return (
-    <div className="h-12 w-12 rounded-full bg-secondary overflow-hidden flex items-center justify-center shrink-0">
-      {url ? <img src={url} alt={name ?? ""} className="h-full w-full object-cover" /> : <span className="font-display font-bold text-lg text-primary">{name?.[0] ?? "?"}</span>}
+    <div className="h-12 w-12 rounded-full bg-secondary overflow-hidden flex items-center justify-center shrink-0 ring-1 ring-[oklch(1_0_0/0.08)]">
+      {url ? <img src={url} alt={name ?? ""} className="h-full w-full object-cover" /> : <span className="font-display font-medium text-lg text-primary">{name?.[0] ?? "?"}</span>}
     </div>
   );
 }
