@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Heart, ChevronLeft } from "lucide-react";
+import { Heart, ChevronLeft, Plus, X, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import {
@@ -49,8 +49,9 @@ function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  // Multi-photo state: existing remote URLs + newly picked local files
+  const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
+  const [newFiles, setNewFiles] = useState<File[]>([]);
   const [data, setData] = useState<FormData>({
     display_name: "",
     gender: "",
@@ -77,13 +78,15 @@ function Onboarding() {
     open_to_long_distance: true,
   });
 
-  // Prefill display_name
+  // Prefill display_name + existing photos
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("display_name,avatar_url").eq("id", user.id).maybeSingle()
+    supabase.from("profiles").select("display_name,avatar_url,photos").eq("id", user.id).maybeSingle()
       .then(({ data: p }) => {
         if (p?.display_name) setData((d) => ({ ...d, display_name: p.display_name ?? "" }));
-        if (p?.avatar_url) setPhotoPreview(p.avatar_url);
+        const photos = (p?.photos as string[] | null) ?? [];
+        const merged = photos.length > 0 ? photos : (p?.avatar_url ? [p.avatar_url] : []);
+        setExistingPhotos(merged);
       });
   }, [user]);
 
@@ -100,6 +103,8 @@ function Onboarding() {
 
   const validateStep = (s: number): string | null => {
     if (s === 0) {
+      const totalPhotos = existingPhotos.length + newFiles.length;
+      if (totalPhotos < 3) return `Add at least 3 photos (you have ${totalPhotos})`;
       if (!data.display_name.trim()) return "Add your display name";
       if (!data.gender) return "Select your gender";
       const age = calcAge(data.date_of_birth);
@@ -140,20 +145,22 @@ function Onboarding() {
     if (!user) return;
     setBusy(true);
     try {
-      // upload photo first
-      let avatarUrl: string | null = photoPreview;
-      const photos: string[] = [];
-      if (photoFile) {
-        const ext = photoFile.name.split(".").pop() ?? "jpg";
-        const path = `${user.id}/${Date.now()}.${ext}`;
+      // upload any new photos to storage, preserving order
+      const uploaded: string[] = [];
+      for (let i = 0; i < newFiles.length; i++) {
+        const f = newFiles[i];
+        const ext = f.name.split(".").pop() ?? "jpg";
+        const path = `${user.id}/${Date.now()}-${i}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("profile-photos")
-          .upload(path, photoFile, { upsert: true, contentType: photoFile.type });
+          .upload(path, f, { upsert: true, contentType: f.type });
         if (upErr) throw upErr;
         const { data: pub } = supabase.storage.from("profile-photos").getPublicUrl(path);
-        avatarUrl = pub.publicUrl;
-        photos.push(avatarUrl);
+        uploaded.push(pub.publicUrl);
       }
+      const photos = [...existingPhotos, ...uploaded];
+      if (photos.length < 3) throw new Error("Please add at least 3 photos");
+      const avatarUrl = photos[0];
 
       const profileSchema = z.object({
         display_name: z.string().trim().min(2).max(60),
@@ -182,7 +189,7 @@ function Onboarding() {
         lifestyle: data.lifestyle,
         relationship_goal: data.relationship_goal as "serious" | "marriage" | "friendship" | "casual" | "open",
         avatar_url: avatarUrl,
-        photos: photos.length > 0 ? photos : undefined,
+        photos,
         profile_completed: true,
         last_active: new Date().toISOString(),
       }).eq("id", user.id);
@@ -244,7 +251,16 @@ function Onboarding() {
 
         {step === 0 && (
           <div className="mt-6 space-y-5">
-            <PhotoPicker file={photoFile} preview={photoPreview} onFile={(f, url) => { setPhotoFile(f); setPhotoPreview(url); }} />
+            <MultiPhotoPicker
+              existing={existingPhotos}
+              files={newFiles}
+              onRemoveExisting={(i) => setExistingPhotos((arr) => arr.filter((_, idx) => idx !== i))}
+              onRemoveNew={(i) => setNewFiles((arr) => arr.filter((_, idx) => idx !== i))}
+              onAdd={(fs) => setNewFiles((arr) => [...arr, ...fs])}
+              onMakeFirstExisting={(i) => setExistingPhotos((arr) => {
+                const next = [...arr]; const [it] = next.splice(i, 1); next.unshift(it); return next;
+              })}
+            />
             <Text label="Display name" value={data.display_name} onChange={(v) => update("display_name", v)} placeholder="What should people call you?" />
             <ChoiceGrid label="I am a" options={GENDERS.map(g => ({ value: g.value, label: g.label }))} value={data.gender} onChange={(v) => update("gender", v)} />
             <Text label="Date of birth" type="date" value={data.date_of_birth} onChange={(v) => update("date_of_birth", v)} />
