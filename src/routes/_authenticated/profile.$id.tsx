@@ -16,6 +16,7 @@ interface FullProfile extends ProfileLike {
   display_name: string | null;
   bio: string | null;
   avatar_url: string | null;
+  photos: string[] | null;
   region: string | null;
   religion: string | null;
   occupation: string | null;
@@ -31,6 +32,7 @@ function ProfileView() {
   const [liked, setLiked] = useState(false);
   const [matched, setMatched] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -56,6 +58,10 @@ function ProfileView() {
 
   const m = calcMatch(me, prefs, target);
   const age = calcAge(target.date_of_birth);
+  const photos = (target.photos && target.photos.length > 0)
+    ? target.photos
+    : target.avatar_url ? [target.avatar_url] : [];
+  const main = photos[activeIdx] ?? null;
 
   async function toggleLike() {
     if (!user || !target) return;
@@ -112,13 +118,22 @@ function ProfileView() {
 
       <div className="px-4">
         <div className="relative aspect-[4/5] rounded-[2rem] overflow-hidden bg-card shadow-card border hairline">
-          {target.avatar_url ? (
-            <img src={target.avatar_url} alt={target.display_name ?? ""} className="absolute inset-0 h-full w-full object-cover" />
+          {main ? (
+            <img key={main} src={main} alt={target.display_name ?? ""} className="absolute inset-0 h-full w-full object-cover animate-in fade-in duration-300" />
           ) : (
             <div className="absolute inset-0 bg-ember grid place-items-center">
               <Heart className="h-20 w-20 text-primary/40" />
             </div>
           )}
+          {photos.length > 1 && (
+            <div className="absolute top-3 left-0 right-0 px-3 flex gap-1 z-10">
+              {photos.map((_, i) => (
+                <div key={i} className={`h-1 flex-1 rounded-full ${i === activeIdx ? "bg-white" : "bg-white/30"}`} />
+              ))}
+            </div>
+          )}
+          <button aria-label="Previous" onClick={() => setActiveIdx((i) => (i - 1 + photos.length) % Math.max(1, photos.length))} className="absolute inset-y-0 left-0 w-1/3 z-0" />
+          <button aria-label="Next" onClick={() => setActiveIdx((i) => (i + 1) % Math.max(1, photos.length))} className="absolute inset-y-0 right-0 w-1/3 z-0" />
           <div className="absolute top-4 right-4"><MatchBadge score={m.score} size="lg" /></div>
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-6 text-white">
             <h1 className="font-display text-5xl font-medium leading-[1]">
@@ -130,6 +145,20 @@ function ProfileView() {
             </div>
           </div>
         </div>
+
+        {photos.length > 1 && (
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {photos.map((p, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveIdx(i)}
+                className={`shrink-0 h-16 w-16 rounded-2xl overflow-hidden border-2 transition ${i === activeIdx ? "border-primary" : "border-transparent opacity-70"}`}
+              >
+                <img src={p} alt="" className="h-full w-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
 
         {target.bio && (
           <Section title="About">

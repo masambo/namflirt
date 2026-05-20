@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Heart, ChevronLeft } from "lucide-react";
+import { Heart, ChevronLeft, Plus, X, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import {
@@ -49,8 +49,9 @@ function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  // Multi-photo state: existing remote URLs + newly picked local files
+  const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
+  const [newFiles, setNewFiles] = useState<File[]>([]);
   const [data, setData] = useState<FormData>({
     display_name: "",
     gender: "",
@@ -77,13 +78,15 @@ function Onboarding() {
     open_to_long_distance: true,
   });
 
-  // Prefill display_name
+  // Prefill display_name + existing photos
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("display_name,avatar_url").eq("id", user.id).maybeSingle()
+    supabase.from("profiles").select("display_name,avatar_url,photos").eq("id", user.id).maybeSingle()
       .then(({ data: p }) => {
         if (p?.display_name) setData((d) => ({ ...d, display_name: p.display_name ?? "" }));
-        if (p?.avatar_url) setPhotoPreview(p.avatar_url);
+        const photos = (p?.photos as string[] | null) ?? [];
+        const merged = photos.length > 0 ? photos : (p?.avatar_url ? [p.avatar_url] : []);
+        setExistingPhotos(merged);
       });
   }, [user]);
 
@@ -100,6 +103,8 @@ function Onboarding() {
 
   const validateStep = (s: number): string | null => {
     if (s === 0) {
+      const totalPhotos = existingPhotos.length + newFiles.length;
+      if (totalPhotos < 3) return `Add at least 3 photos (you have ${totalPhotos})`;
       if (!data.display_name.trim()) return "Add your display name";
       if (!data.gender) return "Select your gender";
       const age = calcAge(data.date_of_birth);
@@ -140,20 +145,22 @@ function Onboarding() {
     if (!user) return;
     setBusy(true);
     try {
-      // upload photo first
-      let avatarUrl: string | null = photoPreview;
-      const photos: string[] = [];
-      if (photoFile) {
-        const ext = photoFile.name.split(".").pop() ?? "jpg";
-        const path = `${user.id}/${Date.now()}.${ext}`;
+      // upload any new photos to storage, preserving order
+      const uploaded: string[] = [];
+      for (let i = 0; i < newFiles.length; i++) {
+        const f = newFiles[i];
+        const ext = f.name.split(".").pop() ?? "jpg";
+        const path = `${user.id}/${Date.now()}-${i}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("profile-photos")
-          .upload(path, photoFile, { upsert: true, contentType: photoFile.type });
+          .upload(path, f, { upsert: true, contentType: f.type });
         if (upErr) throw upErr;
         const { data: pub } = supabase.storage.from("profile-photos").getPublicUrl(path);
-        avatarUrl = pub.publicUrl;
-        photos.push(avatarUrl);
+        uploaded.push(pub.publicUrl);
       }
+      const photos = [...existingPhotos, ...uploaded];
+      if (photos.length < 3) throw new Error("Please add at least 3 photos");
+      const avatarUrl = photos[0];
 
       const profileSchema = z.object({
         display_name: z.string().trim().min(2).max(60),
@@ -182,7 +189,7 @@ function Onboarding() {
         lifestyle: data.lifestyle,
         relationship_goal: data.relationship_goal as "serious" | "marriage" | "friendship" | "casual" | "open",
         avatar_url: avatarUrl,
-        photos: photos.length > 0 ? photos : undefined,
+        photos,
         profile_completed: true,
         last_active: new Date().toISOString(),
       }).eq("id", user.id);
@@ -244,7 +251,16 @@ function Onboarding() {
 
         {step === 0 && (
           <div className="mt-6 space-y-5">
-            <PhotoPicker file={photoFile} preview={photoPreview} onFile={(f, url) => { setPhotoFile(f); setPhotoPreview(url); }} />
+            <MultiPhotoPicker
+              existing={existingPhotos}
+              files={newFiles}
+              onRemoveExisting={(i) => setExistingPhotos((arr) => arr.filter((_, idx) => idx !== i))}
+              onRemoveNew={(i) => setNewFiles((arr) => arr.filter((_, idx) => idx !== i))}
+              onAdd={(fs) => setNewFiles((arr) => [...arr, ...fs])}
+              onMakeFirstExisting={(i) => setExistingPhotos((arr) => {
+                const next = [...arr]; const [it] = next.splice(i, 1); next.unshift(it); return next;
+              })}
+            />
             <Text label="Display name" value={data.display_name} onChange={(v) => update("display_name", v)} placeholder="What should people call you?" />
             <ChoiceGrid label="I am a" options={GENDERS.map(g => ({ value: g.value, label: g.label }))} value={data.gender} onChange={(v) => update("gender", v)} />
             <Text label="Date of birth" type="date" value={data.date_of_birth} onChange={(v) => update("date_of_birth", v)} />
@@ -460,32 +476,79 @@ function MultiPills({ label, options, values, onToggle }: { label: string; optio
   );
 }
 
-function PhotoPicker({ file, preview, onFile }: { file: File | null; preview: string | null; onFile: (f: File | null, url: string | null) => void }) {
-  const url = file ? URL.createObjectURL(file) : preview;
+function MultiPhotoPicker({
+  existing,
+  files,
+  onAdd,
+  onRemoveExisting,
+  onRemoveNew,
+  onMakeFirstExisting,
+}: {
+  existing: string[];
+  files: File[];
+  onAdd: (fs: File[]) => void;
+  onRemoveExisting: (i: number) => void;
+  onRemoveNew: (i: number) => void;
+  onMakeFirstExisting: (i: number) => void;
+}) {
+  const total = existing.length + files.length;
+  const slots = Math.max(6, total + 1);
   return (
-    <label className="block">
-      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Profile photo</span>
-      <div className="mt-2 flex items-center gap-4">
-        <div className="h-24 w-24 rounded-full bg-secondary overflow-hidden flex items-center justify-center text-muted-foreground border-2 border-dashed border-border">
-          {url ? (
-            <img src={url} alt="Profile preview" className="h-full w-full object-cover" />
-          ) : (
-            <Heart className="h-8 w-8 text-muted-foreground/50" />
-          )}
-        </div>
-        <div className="flex-1">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              const f = e.target.files?.[0] ?? null;
-              onFile(f, f ? URL.createObjectURL(f) : preview);
-            }}
-            className="block w-full text-sm file:mr-3 file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-primary-foreground file:font-medium file:cursor-pointer"
-          />
-          <p className="mt-1 text-xs text-muted-foreground">Pick a clear photo of your face. JPG or PNG, max 5MB.</p>
-        </div>
+    <div>
+      <div className="flex items-baseline justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Photos</span>
+        <span className={`text-xs ${total >= 3 ? "text-primary" : "text-muted-foreground"}`}>
+          {total}/3 minimum
+        </span>
       </div>
-    </label>
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {existing.map((url, i) => (
+          <div key={`e-${i}`} className="relative aspect-square rounded-2xl overflow-hidden bg-secondary group">
+            <img src={url} alt="" className="h-full w-full object-cover" />
+            {i === 0 && (
+              <span className="absolute top-1 left-1 rounded-full bg-primary text-primary-foreground text-[10px] px-2 py-0.5 font-semibold inline-flex items-center gap-1">
+                <Star className="h-2.5 w-2.5 fill-current" /> Main
+              </span>
+            )}
+            <button type="button" onClick={() => onRemoveExisting(i)} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/70 text-white grid place-items-center">
+              <X className="h-3.5 w-3.5" />
+            </button>
+            {i !== 0 && (
+              <button type="button" onClick={() => onMakeFirstExisting(i)} className="absolute bottom-1 left-1 right-1 rounded-full bg-black/70 text-white text-[10px] py-1 font-medium opacity-0 group-hover:opacity-100 transition">
+                Set as main
+              </button>
+            )}
+          </div>
+        ))}
+        {files.map((f, i) => {
+          const url = URL.createObjectURL(f);
+          return (
+            <div key={`n-${i}`} className="relative aspect-square rounded-2xl overflow-hidden bg-secondary">
+              <img src={url} alt="" className="h-full w-full object-cover" />
+              <button type="button" onClick={() => onRemoveNew(i)} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/70 text-white grid place-items-center">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          );
+        })}
+        {Array.from({ length: Math.max(0, slots - total) }).map((_, i) => (
+          <label key={`s-${i}`} className="relative aspect-square rounded-2xl border-2 border-dashed border-border bg-card/40 grid place-items-center cursor-pointer hover:border-primary/60 transition">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => {
+                const fs = Array.from(e.target.files ?? []);
+                if (fs.length) onAdd(fs);
+                e.currentTarget.value = "";
+              }}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+            />
+            <Plus className="h-5 w-5 text-muted-foreground" />
+          </label>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">First photo is your main. Add at least 3 clear photos. JPG or PNG.</p>
+    </div>
   );
 }
