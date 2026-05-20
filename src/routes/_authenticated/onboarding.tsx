@@ -476,32 +476,79 @@ function MultiPills({ label, options, values, onToggle }: { label: string; optio
   );
 }
 
-function PhotoPicker({ file, preview, onFile }: { file: File | null; preview: string | null; onFile: (f: File | null, url: string | null) => void }) {
-  const url = file ? URL.createObjectURL(file) : preview;
+function MultiPhotoPicker({
+  existing,
+  files,
+  onAdd,
+  onRemoveExisting,
+  onRemoveNew,
+  onMakeFirstExisting,
+}: {
+  existing: string[];
+  files: File[];
+  onAdd: (fs: File[]) => void;
+  onRemoveExisting: (i: number) => void;
+  onRemoveNew: (i: number) => void;
+  onMakeFirstExisting: (i: number) => void;
+}) {
+  const total = existing.length + files.length;
+  const slots = Math.max(6, total + 1);
   return (
-    <label className="block">
-      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Profile photo</span>
-      <div className="mt-2 flex items-center gap-4">
-        <div className="h-24 w-24 rounded-full bg-secondary overflow-hidden flex items-center justify-center text-muted-foreground border-2 border-dashed border-border">
-          {url ? (
-            <img src={url} alt="Profile preview" className="h-full w-full object-cover" />
-          ) : (
-            <Heart className="h-8 w-8 text-muted-foreground/50" />
-          )}
-        </div>
-        <div className="flex-1">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              const f = e.target.files?.[0] ?? null;
-              onFile(f, f ? URL.createObjectURL(f) : preview);
-            }}
-            className="block w-full text-sm file:mr-3 file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-primary-foreground file:font-medium file:cursor-pointer"
-          />
-          <p className="mt-1 text-xs text-muted-foreground">Pick a clear photo of your face. JPG or PNG, max 5MB.</p>
-        </div>
+    <div>
+      <div className="flex items-baseline justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Photos</span>
+        <span className={`text-xs ${total >= 3 ? "text-primary" : "text-muted-foreground"}`}>
+          {total}/3 minimum
+        </span>
       </div>
-    </label>
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {existing.map((url, i) => (
+          <div key={`e-${i}`} className="relative aspect-square rounded-2xl overflow-hidden bg-secondary group">
+            <img src={url} alt="" className="h-full w-full object-cover" />
+            {i === 0 && (
+              <span className="absolute top-1 left-1 rounded-full bg-primary text-primary-foreground text-[10px] px-2 py-0.5 font-semibold inline-flex items-center gap-1">
+                <Star className="h-2.5 w-2.5 fill-current" /> Main
+              </span>
+            )}
+            <button type="button" onClick={() => onRemoveExisting(i)} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/70 text-white grid place-items-center">
+              <X className="h-3.5 w-3.5" />
+            </button>
+            {i !== 0 && (
+              <button type="button" onClick={() => onMakeFirstExisting(i)} className="absolute bottom-1 left-1 right-1 rounded-full bg-black/70 text-white text-[10px] py-1 font-medium opacity-0 group-hover:opacity-100 transition">
+                Set as main
+              </button>
+            )}
+          </div>
+        ))}
+        {files.map((f, i) => {
+          const url = URL.createObjectURL(f);
+          return (
+            <div key={`n-${i}`} className="relative aspect-square rounded-2xl overflow-hidden bg-secondary">
+              <img src={url} alt="" className="h-full w-full object-cover" />
+              <button type="button" onClick={() => onRemoveNew(i)} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/70 text-white grid place-items-center">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          );
+        })}
+        {Array.from({ length: Math.max(0, slots - total) }).map((_, i) => (
+          <label key={`s-${i}`} className="relative aspect-square rounded-2xl border-2 border-dashed border-border bg-card/40 grid place-items-center cursor-pointer hover:border-primary/60 transition">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => {
+                const fs = Array.from(e.target.files ?? []);
+                if (fs.length) onAdd(fs);
+                e.currentTarget.value = "";
+              }}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+            />
+            <Plus className="h-5 w-5 text-muted-foreground" />
+          </label>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">First photo is your main. Add at least 3 clear photos. JPG or PNG.</p>
+    </div>
   );
 }
