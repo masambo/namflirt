@@ -49,6 +49,7 @@ function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   // Multi-photo state: existing remote URLs + newly picked local files
   const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
   const [newFiles, setNewFiles] = useState<File[]>([]);
@@ -78,16 +79,53 @@ function Onboarding() {
     open_to_long_distance: true,
   });
 
-  // Prefill display_name + existing photos
+  // Prefill everything from existing profile + preferences so editing
+  // never feels like starting over.
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("display_name,avatar_url,photos").eq("id", user.id).maybeSingle()
-      .then(({ data: p }) => {
-        if (p?.display_name) setData((d) => ({ ...d, display_name: p.display_name ?? "" }));
-        const photos = (p?.photos as string[] | null) ?? [];
-        const merged = photos.length > 0 ? photos : (p?.avatar_url ? [p.avatar_url] : []);
+    (async () => {
+      const [{ data: p }, { data: pref }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+        supabase.from("preferences").select("*").eq("user_id", user.id).maybeSingle(),
+      ]);
+      if (p) {
+        if (p.profile_completed) setIsEditing(true);
+        const photos = (p.photos as string[] | null) ?? [];
+        const merged = photos.length > 0 ? photos : (p.avatar_url ? [p.avatar_url] : []);
         setExistingPhotos(merged);
-      });
+        setData((d) => ({
+          ...d,
+          display_name: p.display_name ?? d.display_name,
+          gender: p.gender ?? d.gender,
+          date_of_birth: p.date_of_birth ?? d.date_of_birth,
+          bio: p.bio ?? d.bio,
+          region: p.region ?? d.region,
+          town: p.town ?? d.town,
+          tribe: p.tribe ?? d.tribe,
+          languages: p.languages ?? d.languages,
+          religion: p.religion ?? d.religion,
+          education: p.education ?? d.education,
+          occupation: p.occupation ?? d.occupation,
+          hobbies: p.hobbies ?? d.hobbies,
+          lifestyle: p.lifestyle ?? d.lifestyle,
+          relationship_goal: p.relationship_goal ?? d.relationship_goal,
+        }));
+      }
+      if (pref) {
+        setData((d) => ({
+          ...d,
+          preferred_gender: pref.preferred_gender ?? d.preferred_gender,
+          min_age: pref.min_age ?? d.min_age,
+          max_age: pref.max_age ?? d.max_age,
+          preferred_languages: pref.preferred_languages ?? d.preferred_languages,
+          preferred_tribes: pref.preferred_tribes ?? d.preferred_tribes,
+          tribe_importance: pref.tribe_importance ?? d.tribe_importance,
+          preferred_relationship_goal: pref.preferred_relationship_goal ?? d.preferred_relationship_goal,
+          preferred_hobbies: pref.preferred_hobbies ?? d.preferred_hobbies,
+          open_to_long_distance: pref.open_to_long_distance ?? d.open_to_long_distance,
+        }));
+      }
+    })();
   }, [user]);
 
   function update<K extends keyof FormData>(k: K, v: FormData[K]) {
@@ -208,9 +246,9 @@ function Onboarding() {
       }).eq("user_id", user.id);
       if (prefErr) throw prefErr;
 
-      toast.success("Profile complete! Time to meet people.");
+      toast.success(isEditing ? "Profile updated" : "Profile complete! Time to meet people.");
       // hard reload-ish navigate so AuthGate re-checks profile_completed
-      window.location.assign("/browse");
+      window.location.assign(isEditing ? "/me" : "/browse");
     } catch (e) {
       const msg = e instanceof z.ZodError ? e.issues[0]?.message : e instanceof Error ? e.message : "Failed";
       toast.error(msg ?? "Failed");
@@ -223,7 +261,7 @@ function Onboarding() {
     <div className="min-h-screen">
       <header className="px-5 pt-5 pb-3 flex items-center justify-between">
         <button
-          onClick={() => (step > 0 ? setStep(step - 1) : navigate({ to: "/" }))}
+          onClick={() => (step > 0 ? setStep(step - 1) : navigate({ to: isEditing ? "/me" : "/" }))}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ChevronLeft className="h-4 w-4" /> Back
@@ -328,7 +366,7 @@ function Onboarding() {
             disabled={busy}
             className="w-full rounded-full bg-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-soft hover:opacity-90 disabled:opacity-60"
           >
-            {busy ? "Saving…" : step === STEPS.length - 1 ? "Finish & start matching" : "Continue"}
+            {busy ? "Saving…" : step === STEPS.length - 1 ? (isEditing ? "Save changes" : "Finish & start matching") : "Continue"}
           </button>
         </div>
       </div>
