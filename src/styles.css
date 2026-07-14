@@ -35,6 +35,38 @@
   --font-display: "Manrope", "Inter", system-ui, sans-serif;
 }
 
+@layer components {
+  .admin-panel {
+    @apply rounded-lg border border-white/8 bg-[#171715];
+  }
+
+  .admin-label {
+    @apply text-[10px] font-semibold uppercase text-white/35;
+    letter-spacing: 0.12em;
+  }
+
+  .admin-input {
+    @apply h-9 rounded-md border border-white/10 bg-white/[.025] px-3 text-xs text-white outline-none transition placeholder:text-white/25 focus:border-white/25;
+  }
+
+  .admin-button-primary,
+  .admin-button-secondary {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-md px-3.5 text-xs font-semibold transition disabled:pointer-events-none disabled:opacity-45;
+  }
+
+  .admin-button-primary {
+    @apply bg-white text-black hover:bg-white/85;
+  }
+
+  .admin-button-secondary {
+    @apply border border-white/10 bg-transparent text-white/55 hover:bg-white/[.05] hover:text-white;
+  }
+
+  .admin-icon-button {
+    @apply inline-grid h-8 w-8 place-items-center rounded-md border border-white/8 text-white/40 transition hover:bg-white/[.05] hover:text-white;
+  }
+}
+
 :root {
   --radius: 1.25rem;
   --background: #11110f;
@@ -1144,10 +1176,22 @@
 
 @media (min-width: 1024px) {
   .connections-page {
-    width: 100%;
-    max-width: none;
-    margin-inline: 0;
-    padding-inline: 2.5rem;
+    width: min(100% - 4rem, 1120px);
+    max-width: 1120px;
+    margin-inline: auto;
+    padding-inline: 0;
+  }
+}
+
+.connections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 21rem));
+  gap: 1rem;
+}
+
+@media (max-width: 639px) {
+  .connections-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

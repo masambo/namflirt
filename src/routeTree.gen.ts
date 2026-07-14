@@ -10,9 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SingleWomenNamibiaRouteImport } from './routes/single-women-namibia'
+import { Route as SingleMenNamibiaRouteImport } from './routes/single-men-namibia'
 import { Route as SafetyRouteImport } from './routes/safety'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PlansRouteImport } from './routes/plans'
+import { Route as DatingInNamibiaRouteImport } from './routes/dating-in-namibia'
 import { Route as CommunityGuidelinesRouteImport } from './routes/community-guidelines'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
@@ -22,12 +25,23 @@ import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedLikesRouteImport } from './routes/_authenticated/likes'
 import { Route as AuthenticatedBrowseRouteImport } from './routes/_authenticated/browse'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedProfileIdRouteImport } from './routes/_authenticated/profile.$id'
 import { Route as AuthenticatedMessagesIdRouteImport } from './routes/_authenticated/messages.$id'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SingleWomenNamibiaRoute = SingleWomenNamibiaRouteImport.update({
+  id: '/single-women-namibia',
+  path: '/single-women-namibia',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SingleMenNamibiaRoute = SingleMenNamibiaRouteImport.update({
+  id: '/single-men-namibia',
+  path: '/single-men-namibia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SafetyRoute = SafetyRouteImport.update({
@@ -43,6 +57,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const PlansRoute = PlansRouteImport.update({
   id: '/plans',
   path: '/plans',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DatingInNamibiaRoute = DatingInNamibiaRouteImport.update({
+  id: '/dating-in-namibia',
+  path: '/dating-in-namibia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityGuidelinesRoute = CommunityGuidelinesRouteImport.update({
@@ -89,6 +108,11 @@ const AuthenticatedBrowseRoute = AuthenticatedBrowseRouteImport.update({
   path: '/browse',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedProfileIdRoute = AuthenticatedProfileIdRouteImport.update({
   id: '/profile/$id',
   path: '/profile/$id',
@@ -104,10 +128,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/community-guidelines': typeof CommunityGuidelinesRoute
+  '/dating-in-namibia': typeof DatingInNamibiaRoute
   '/plans': typeof PlansRoute
   '/privacy': typeof PrivacyRoute
   '/safety': typeof SafetyRoute
+  '/single-men-namibia': typeof SingleMenNamibiaRoute
+  '/single-women-namibia': typeof SingleWomenNamibiaRoute
   '/terms': typeof TermsRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/browse': typeof AuthenticatedBrowseRoute
   '/likes': typeof AuthenticatedLikesRoute
   '/me': typeof AuthenticatedMeRoute
@@ -120,10 +148,14 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/community-guidelines': typeof CommunityGuidelinesRoute
+  '/dating-in-namibia': typeof DatingInNamibiaRoute
   '/plans': typeof PlansRoute
   '/privacy': typeof PrivacyRoute
   '/safety': typeof SafetyRoute
+  '/single-men-namibia': typeof SingleMenNamibiaRoute
+  '/single-women-namibia': typeof SingleWomenNamibiaRoute
   '/terms': typeof TermsRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/browse': typeof AuthenticatedBrowseRoute
   '/likes': typeof AuthenticatedLikesRoute
   '/me': typeof AuthenticatedMeRoute
@@ -138,10 +170,14 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/auth': typeof AuthRoute
   '/community-guidelines': typeof CommunityGuidelinesRoute
+  '/dating-in-namibia': typeof DatingInNamibiaRoute
   '/plans': typeof PlansRoute
   '/privacy': typeof PrivacyRoute
   '/safety': typeof SafetyRoute
+  '/single-men-namibia': typeof SingleMenNamibiaRoute
+  '/single-women-namibia': typeof SingleWomenNamibiaRoute
   '/terms': typeof TermsRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/browse': typeof AuthenticatedBrowseRoute
   '/_authenticated/likes': typeof AuthenticatedLikesRoute
   '/_authenticated/me': typeof AuthenticatedMeRoute
@@ -156,10 +192,14 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/community-guidelines'
+    | '/dating-in-namibia'
     | '/plans'
     | '/privacy'
     | '/safety'
+    | '/single-men-namibia'
+    | '/single-women-namibia'
     | '/terms'
+    | '/admin'
     | '/browse'
     | '/likes'
     | '/me'
@@ -172,10 +212,14 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/community-guidelines'
+    | '/dating-in-namibia'
     | '/plans'
     | '/privacy'
     | '/safety'
+    | '/single-men-namibia'
+    | '/single-women-namibia'
     | '/terms'
+    | '/admin'
     | '/browse'
     | '/likes'
     | '/me'
@@ -189,10 +233,14 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/community-guidelines'
+    | '/dating-in-namibia'
     | '/plans'
     | '/privacy'
     | '/safety'
+    | '/single-men-namibia'
+    | '/single-women-namibia'
     | '/terms'
+    | '/_authenticated/admin'
     | '/_authenticated/browse'
     | '/_authenticated/likes'
     | '/_authenticated/me'
@@ -207,9 +255,12 @@ export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   AuthRoute: typeof AuthRoute
   CommunityGuidelinesRoute: typeof CommunityGuidelinesRoute
+  DatingInNamibiaRoute: typeof DatingInNamibiaRoute
   PlansRoute: typeof PlansRoute
   PrivacyRoute: typeof PrivacyRoute
   SafetyRoute: typeof SafetyRoute
+  SingleMenNamibiaRoute: typeof SingleMenNamibiaRoute
+  SingleWomenNamibiaRoute: typeof SingleWomenNamibiaRoute
   TermsRoute: typeof TermsRoute
 }
 
@@ -220,6 +271,20 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/single-women-namibia': {
+      id: '/single-women-namibia'
+      path: '/single-women-namibia'
+      fullPath: '/single-women-namibia'
+      preLoaderRoute: typeof SingleWomenNamibiaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/single-men-namibia': {
+      id: '/single-men-namibia'
+      path: '/single-men-namibia'
+      fullPath: '/single-men-namibia'
+      preLoaderRoute: typeof SingleMenNamibiaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/safety': {
@@ -241,6 +306,13 @@ declare module '@tanstack/react-router' {
       path: '/plans'
       fullPath: '/plans'
       preLoaderRoute: typeof PlansRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dating-in-namibia': {
+      id: '/dating-in-namibia'
+      path: '/dating-in-namibia'
+      fullPath: '/dating-in-namibia'
+      preLoaderRoute: typeof DatingInNamibiaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/community-guidelines': {
@@ -306,6 +378,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBrowseRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/profile/$id': {
       id: '/_authenticated/profile/$id'
       path: '/profile/$id'
@@ -337,6 +416,7 @@ const AuthenticatedMessagesRouteWithChildren =
   )
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedBrowseRoute: typeof AuthenticatedBrowseRoute
   AuthenticatedLikesRoute: typeof AuthenticatedLikesRoute
   AuthenticatedMeRoute: typeof AuthenticatedMeRoute
@@ -346,6 +426,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedBrowseRoute: AuthenticatedBrowseRoute,
   AuthenticatedLikesRoute: AuthenticatedLikesRoute,
   AuthenticatedMeRoute: AuthenticatedMeRoute,
@@ -363,9 +444,12 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   AuthRoute: AuthRoute,
   CommunityGuidelinesRoute: CommunityGuidelinesRoute,
+  DatingInNamibiaRoute: DatingInNamibiaRoute,
   PlansRoute: PlansRoute,
   PrivacyRoute: PrivacyRoute,
   SafetyRoute: SafetyRoute,
+  SingleMenNamibiaRoute: SingleMenNamibiaRoute,
+  SingleWomenNamibiaRoute: SingleWomenNamibiaRoute,
   TermsRoute: TermsRoute,
 }
 export const routeTree = rootRouteImport

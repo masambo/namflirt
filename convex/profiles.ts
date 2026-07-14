@@ -1,7 +1,9 @@
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { getClerkUserId, requireClerkUserId } from "./authHelpers";
+import { getClerkUserId, isConfiguredAdmin, requireClerkUserId } from "./authHelpers";
 import { currentUsageDay, currentUsageMonth, normalizePlan, planLimits } from "./plans";
+
+const PREMIUM_TRIAL_MS = 14 * 24 * 60 * 60 * 1000;
 
 const demoProfiles = [
   {
@@ -144,6 +146,7 @@ function withPlanDefaults<
     messagesUsedThisMonth?: number;
     profileViewsUsedThisMonth?: number;
     likesUsedToday?: number;
+    premiumTrialEndsAt?: number;
   },
 >(profile: T) {
   return {
@@ -154,7 +157,12 @@ function withPlanDefaults<
     messagesUsedThisMonth: profile.messagesUsedThisMonth ?? 0,
     profileViewsUsedThisMonth: profile.profileViewsUsedThisMonth ?? 0,
     likesUsedToday: profile.likesUsedToday ?? 0,
+    premiumTrialEndsAt: profile.premiumTrialEndsAt,
   };
+}
+
+function isAdminProfile(profile: { userId?: string; email?: string }) {
+  return isConfiguredAdmin(profile.userId, profile.email);
 }
 
 export const viewer = query({
@@ -208,7 +216,8 @@ export const ensureViewer = mutation({
       verified: false,
       completed: false,
       isDemo: false,
-      plan: "free",
+      plan: "premium",
+      premiumTrialEndsAt: Date.now() + PREMIUM_TRIAL_MS,
       usageMonth: currentUsageMonth(),
       usageDay: currentUsageDay(),
       messagesUsedThisMonth: 0,
@@ -276,7 +285,11 @@ export const list = query({
       viewer: viewer ? withPlanDefaults(viewer) : null,
       preferences,
       profiles: profiles.filter(
-        (profile) => profile._id !== viewer?._id && !matchedProfileIds.has(profile._id),
+        (profile) =>
+          profile._id !== viewer?._id &&
+          profile.status !== "suspended" &&
+          !isAdminProfile(profile) &&
+          !matchedProfileIds.has(profile._id),
       ),
     };
   },
@@ -285,8 +298,17 @@ export const list = query({
 export const get = query({
   args: { profileId: v.id("profiles") },
   handler: async (ctx, { profileId }) => {
-    if (!(await getClerkUserId(ctx))) throw new Error("You need to sign in first.");
-    return ctx.db.get(profileId);
+    const viewerUserId = await getClerkUserId(ctx);
+    if (!viewerUserId) throw new Error("You need to sign in first.");
+    const profile = await ctx.db.get(profileId);
+    const viewerIsAdmin = isConfiguredAdmin(viewerUserId);
+    if (
+      !profile ||
+      profile.status === "suspended" ||
+      (isAdminProfile(profile) && profile.userId !== viewerUserId && !viewerIsAdmin)
+    )
+      return null;
+    return profile;
   },
 });
 
@@ -361,7 +383,8 @@ export const save = mutation({
       completed: true,
       isDemo: false,
       lastActive: Date.now(),
-      plan: existing?.plan ?? "free",
+      plan: existing?.plan ?? "premium",
+      premiumTrialEndsAt: existing?.premiumTrialEndsAt ?? Date.now() + PREMIUM_TRIAL_MS,
       usageMonth: existing?.usageMonth ?? currentUsageMonth(),
       usageDay: existing?.usageDay ?? currentUsageDay(),
       messagesUsedThisMonth: existing?.messagesUsedThisMonth ?? 0,
@@ -421,22 +444,8 @@ export const generateUploadUrl = mutation({
 
 export const choosePlan = mutation({
   args: { plan: v.union(v.literal("free"), v.literal("premium"), v.literal("vip")) },
-  handler: async (ctx, { plan }) => {
-    const userId = await requireUser(ctx);
-    const profile = await ctx.db
-      .query("profiles")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
-    if (!profile) throw new Error("Complete your profile before choosing a plan.");
-    await ctx.db.patch(profile._id, {
-      plan,
-      usageMonth: currentUsageMonth(),
-      usageDay: currentUsageDay(),
-      messagesUsedThisMonth: 0,
-      profileViewsUsedThisMonth: 0,
-      likesUsedToday: 0,
-    });
-    return plan;
+  handler: async () => {
+    throw new Error("Plan changes are paused while payment setup is completed.");
   },
 });
 
@@ -450,9 +459,13 @@ export const viewProfile = mutation({
       .unique();
     if (!viewer) return { status: "profile_required" as const };
     const profile = await ctx.db.get(profileId);
-    if (!profile || !profile.completed) return { status: "not_found" as const };
+    if (!profile || !profile.completed || profile.status === "suspended")
+      return { status: "not_found" as const };
     if (viewer._id === profileId) {
       return { status: "ready" as const, profile: withPlanDefaults(profile) };
+    }
+    if (isAdminProfile(profile) && !isAdminProfile(viewer)) {
+      return { status: "not_found" as const };
     }
 
     const month = currentUsageMonth();

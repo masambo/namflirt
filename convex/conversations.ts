@@ -12,6 +12,7 @@ async function viewerProfile(ctx: MutationCtx) {
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .unique();
   if (!profile) throw new Error("Complete your profile first.");
+  if (profile.status === "suspended") throw new Error("Your account is currently suspended.");
   return profile;
 }
 
@@ -65,7 +66,8 @@ export const start = mutation({
     const plan = normalizePlan(profile.plan);
     if (profile._id === profileId) return { status: "self" as const };
     const target = await ctx.db.get(profileId);
-    if (!target || !target.completed) return { status: "not_found" as const };
+    if (!target || !target.completed || target.status === "suspended")
+      return { status: "not_found" as const };
     const [userA, userB] =
       String(profile._id) < String(profileId) ? [profile._id, profileId] : [profileId, profile._id];
     const existing = await ctx.db
@@ -156,6 +158,10 @@ export const send = mutation({
       return { status: "not_found" as const };
     const clean = body.trim().slice(0, 1000);
     if (!clean) return { status: "empty" as const };
+    const recipientId =
+      conversation.userA === profile._id ? conversation.userB : conversation.userA;
+    const recipient = await ctx.db.get(recipientId);
+    if (!recipient || recipient.status === "suspended") return { status: "not_found" as const };
     const month = currentUsageMonth();
     const plan = normalizePlan(profile.plan);
     const used = profile.usageMonth === month ? (profile.messagesUsedThisMonth ?? 0) : 0;
@@ -178,8 +184,7 @@ export const send = mutation({
         profile.usageMonth === month ? (profile.profileViewsUsedThisMonth ?? 0) : 0,
     });
     await createNotification(ctx, {
-      recipientProfileId:
-        conversation.userA === profile._id ? conversation.userB : conversation.userA,
+      recipientProfileId: recipientId,
       actorProfileId: profile._id,
       type: "message",
       conversationId,

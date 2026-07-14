@@ -11,7 +11,8 @@
     "convex:deploy": "convex deploy --cmd \"npm run build\"",
     "check": "tsc --noEmit",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "verify": "npm run lint && npm run check && npm run build"
   },
   "dependencies": {
     "@clerk/react": "^6.12.2",

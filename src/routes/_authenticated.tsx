@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { useAuth as useClerkAuth } from "@clerk/react";
+import { useAuth as useClerkAuth, useClerk } from "@clerk/react";
 import { useConvexAuth, useQuery } from "convex/react";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, ShieldAlert } from "lucide-react";
 import { useEffect } from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { PresenceHeartbeat } from "@/components/PresenceHeartbeat";
@@ -20,6 +20,7 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthGate() {
   const navigate = useNavigate();
+  const { signOut } = useClerk();
   const { isLoaded: isClerkLoaded, isSignedIn } = useClerkAuth();
   const { isLoading, isAuthenticated } = useConvexAuth();
   const { pathname } = useLocation();
@@ -43,6 +44,32 @@ function AuthGate() {
     return <AppLoader />;
   }
   if (!isSignedIn || !isAuthenticated || (needsProfile && !onboarding)) return <AppLoader />;
+  if (viewer?.status === "suspended") {
+    return (
+      <div className="grid min-h-screen place-items-center px-6 text-center">
+        <div className="max-w-md">
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-red-400/10 text-red-300">
+            <ShieldAlert className="h-5 w-5" />
+          </span>
+          <p className="admin-label mt-5">Account paused</p>
+          <h1 className="mt-2 text-3xl font-semibold">Your account is under review.</h1>
+          <p className="mt-3 text-sm leading-relaxed text-white/45">
+            Your profile and interactions are temporarily unavailable. Contact the namflirt. safety
+            team if you believe this was a mistake.
+          </p>
+          <button
+            onClick={async () => {
+              await signOut();
+              await navigate({ to: "/" });
+            }}
+            className="admin-button-secondary mt-6"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pb-24 lg:pb-0 lg:pl-60">

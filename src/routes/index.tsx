@@ -23,7 +23,7 @@ export const Route = createFileRoute("/")({
     seoHead({
       title: "Namibian Dating for Meaningful Connections | namflirt.",
       description:
-        "Meet Namibian singles who want genuine connection. Discover thoughtful dating across Namibia's cultures, languages and places with namflirt.",
+        "Dating in Namibia for single women and single men. Meet Namibian singles on namflirt., a Namibia-first dating site built for genuine local connection.",
       path: "/",
       structuredData: homeStructuredData,
     }),
@@ -63,7 +63,15 @@ const heroPortraits = [
   },
 ] as const;
 
-type FooterRoute = "/auth" | "/terms" | "/safety" | "/privacy" | "/community-guidelines";
+type FooterRoute =
+  | "/auth"
+  | "/terms"
+  | "/safety"
+  | "/privacy"
+  | "/community-guidelines"
+  | "/dating-in-namibia"
+  | "/single-women-namibia"
+  | "/single-men-namibia";
 
 type FooterLink =
   | { label: string; href: `#${string}`; to?: never }
@@ -80,6 +88,9 @@ const footerLinks = [
     links: [
       { label: "Why namflirt.", href: "#different" },
       { label: "How it works", href: "#how" },
+      { label: "Dating in Namibia", to: "/dating-in-namibia" },
+      { label: "Single women", to: "/single-women-namibia" },
+      { label: "Single men", to: "/single-men-namibia" },
       { label: "Pricing", href: "#pricing" },
       { label: "Join now", to: "/auth" },
     ],
@@ -165,13 +176,13 @@ function Landing() {
           <div className="hero-glow hero-glow-two" aria-hidden="true" />
           <div className="relative z-10 max-w-2xl">
             <h1 className="hero-title max-w-[780px] text-[clamp(3.55rem,9.4vw,9rem)] font-semibold leading-[.78] tracking-[-.085em]">
-              Meet with
+              Dating in
               <br />
-              <span className="text-primary">intention.</span>
+              <span className="text-primary">Namibia.</span>
             </h1>
             <p className="hero-copy mt-8 max-w-xl text-lg leading-relaxed text-white/55 md:text-xl">
-              A more thoughtful way to meet people across Namibia's cultures, languages and places,
-              built around the kind of connection you actually want.
+              Meet single women and single men across Namibia on a Namibia-first dating site built
+              around culture, language, place and the kind of connection you actually want.
             </p>
             <div className="hero-actions mt-9 flex flex-wrap items-center gap-3">
               <Link to="/auth" className="button-primary">
@@ -322,7 +333,7 @@ function Landing() {
             <div>
               <p className="eyebrow">Plans</p>
               <h2 className="mt-5 max-w-3xl text-5xl font-semibold leading-[.95] tracking-[-.065em] md:text-7xl">
-                Start free. Upgrade when you want more reach.
+                Start with 14 days of Premium.
               </h2>
             </div>
             <Link to="/plans" className="button-ghost self-start md:self-auto">
@@ -555,7 +566,7 @@ function PricingCard({ plan, index }: { plan: PlanDefinition; index: number }) {
           to="/plans"
           className={`mt-auto flex h-14 items-center justify-center gap-2 rounded-xl text-sm font-black transition hover:brightness-110 ${featured ? "bg-primary text-white shadow-[0_12px_32px_rgba(255,79,135,.2)]" : "bg-white/[.07] text-white/65"}`}
         >
-          {isVip ? "Upgrade to VIP" : featured ? "Upgrade to Premium" : "Current plan"}{" "}
+          {isVip ? "VIP preview" : featured ? "Premium trial" : "Free plan"}{" "}
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>

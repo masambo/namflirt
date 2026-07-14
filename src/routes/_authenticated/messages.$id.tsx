@@ -69,7 +69,7 @@ function ConversationView() {
       setText(body);
       if (result.status === "plan_limit") {
         toast.info("Monthly message limit reached", {
-          description: "Upgrade your plan to continue messaging without a monthly limit.",
+          description: "Premium trial access is available while payment setup is being completed.",
         });
         return;
       }

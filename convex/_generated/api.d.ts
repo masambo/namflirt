@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as authHelpers from "../authHelpers.js";
 import type * as conversations from "../conversations.js";
 import type * as likes from "../likes.js";
@@ -15,6 +16,7 @@ import type * as notificationHelpers from "../notificationHelpers.js";
 import type * as notifications from "../notifications.js";
 import type * as plans from "../plans.js";
 import type * as profiles from "../profiles.js";
+import type * as reports from "../reports.js";
 
 import type {
   ApiFromModules,
@@ -23,6 +25,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
   authHelpers: typeof authHelpers;
   conversations: typeof conversations;
   likes: typeof likes;
@@ -30,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   plans: typeof plans;
   profiles: typeof profiles;
+  reports: typeof reports;
 }>;
 
 /**

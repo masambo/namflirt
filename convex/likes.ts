@@ -13,6 +13,7 @@ async function viewerProfile(ctx: MutationCtx) {
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .unique();
   if (!profile) throw new Error("Complete your profile first.");
+  if (profile.status === "suspended") throw new Error("Your account is currently suspended.");
   return profile;
 }
 
@@ -37,7 +38,9 @@ export const summary = query({
     const receivedIds = new Set<Id<"profiles">>(receivedLikes.map((like) => like.fromProfileId));
     const sentIds = new Set<Id<"profiles">>(sentLikes.map((like) => like.toProfileId));
     const load = async (ids: Set<Id<"profiles">>) =>
-      (await Promise.all([...ids].map((id) => ctx.db.get(id)))).filter(Boolean);
+      (await Promise.all([...ids].map((id) => ctx.db.get(id)))).filter(
+        (profile) => profile && profile.status !== "suspended",
+      );
     const matches = new Set([...receivedIds].filter((id) => sentIds.has(id)));
     return {
       received: await load(receivedIds),
@@ -74,6 +77,8 @@ export const toggle = mutation({
   handler: async (ctx, { profileId }) => {
     const profile = await viewerProfile(ctx);
     if (profile._id === profileId) throw new Error("You cannot like your own profile.");
+    const target = await ctx.db.get(profileId);
+    if (!target || target.status === "suspended") throw new Error("This profile is not available.");
     const existing = await ctx.db
       .query("likes")
       .withIndex("by_pair", (q) => q.eq("fromProfileId", profile._id).eq("toProfileId", profileId))
@@ -87,7 +92,9 @@ export const toggle = mutation({
     const used = profile.usageDay === day ? (profile.likesUsedToday ?? 0) : 0;
     const limit = planLimits[plan].likesPerDay;
     if (limit !== null && used >= limit)
-      throw new Error(`Free includes ${limit} likes per day. Upgrade for unlimited likes.`);
+      throw new Error(
+        `Free includes ${limit} likes per day. Premium trials are available while payments are being set up.`,
+      );
     await ctx.db.insert("likes", { fromProfileId: profile._id, toProfileId: profileId });
     await ctx.db.patch(profile._id, {
       usageDay: day,

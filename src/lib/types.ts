@@ -32,7 +32,11 @@ export interface Profile {
   verified: boolean;
   completed: boolean;
   isDemo: boolean;
+  email?: string;
+  status?: "active" | "suspended";
+  moderationNote?: string;
   plan?: "free" | "premium" | "vip";
+  premiumTrialEndsAt?: number;
   usageMonth?: string;
   usageDay?: string;
   messagesUsedThisMonth?: number;

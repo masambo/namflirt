@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type React from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import {
   ArrowLeft,
+  CalendarCheck,
   Check,
   Crown,
   Eye,
@@ -13,7 +14,6 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { BottomNav } from "@/components/BottomNav";
 import { PLAN_DEFINITIONS, resolvePlan, type PlanDefinition, type PlanId } from "@/lib/plans";
@@ -42,7 +42,6 @@ function Plans() {
   const configured = Boolean(import.meta.env.VITE_CONVEX_URL);
   const viewer = useQuery(api.profiles.viewer, configured ? {} : "skip") as
     Profile | null | undefined;
-  const choosePlan = useMutation(api.profiles.choosePlan);
   const current = resolvePlan(viewer?.plan);
 
   function goBack() {
@@ -51,19 +50,6 @@ function Plans() {
       return;
     }
     void navigate({ to: viewer ? "/browse" : "/" });
-  }
-
-  async function selectPlan(plan: PlanId) {
-    if (!configured || !viewer) {
-      toast.message("Authentication will be connected later. For now, this is a UI preview.");
-      return;
-    }
-    try {
-      await choosePlan({ plan });
-      toast.success(`You are now on ${resolvePlan(plan).name}.`);
-    } catch {
-      toast.error("Plan not updated", { description: "Please try again in a moment." });
-    }
   }
 
   return (
@@ -76,13 +62,35 @@ function Plans() {
           </button>
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-semibold tracking-[-.055em] sm:text-3xl md:text-5xl">
-              Choose your plan
+              Premium trial active
             </h1>
             <p className="mt-1 text-sm text-white/40">
-              Unlock better reach, richer access and more ways to connect.
+              Congratulations, you have been given a 14-day Premium trial while payments are being set up.
             </p>
           </div>
         </header>
+
+        <section className="mb-5 rounded-2xl border border-primary/35 bg-primary/10 p-5 text-white shadow-[0_18px_60px_rgba(255,79,135,.12)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary text-white">
+              <CalendarCheck className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-black uppercase tracking-[.12em] text-primary">
+                Congratulations
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-white/70">
+                Every new signup gets Premium for 14 days. Plan changes and VIP access are paused
+                until the payment gateway is ready.
+              </p>
+            </div>
+            {viewer?.premiumTrialEndsAt ? (
+              <p className="shrink-0 rounded-full bg-white/[.08] px-3 py-1.5 text-xs font-bold text-white/70 sm:ml-auto">
+                {trialDaysLeft(viewer.premiumTrialEndsAt)}
+              </p>
+            ) : null}
+          </div>
+        </section>
 
         <section className="plans-grid grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">
           {PLAN_DEFINITIONS.map((plan) => (
@@ -91,7 +99,6 @@ function Plans() {
               plan={plan}
               current={current.id === plan.id}
               preview={!configured || !viewer}
-              onSelect={() => void selectPlan(plan.id)}
             />
           ))}
         </section>
@@ -125,12 +132,10 @@ function PlanCard({
   plan,
   current,
   preview,
-  onSelect,
 }: {
   plan: PlanDefinition;
   current: boolean;
   preview: boolean;
-  onSelect: () => void;
 }) {
   const features = featuresFor(plan);
   const border =
@@ -140,9 +145,9 @@ function PlanCard({
         ? "border-primary"
         : "border-primary/55";
   const button =
-    plan.tone === "quiet"
-      ? "bg-white/[.07] text-white/55"
-      : "bg-primary text-white shadow-[0_12px_32px_rgba(255,79,135,.2)] hover:brightness-110";
+    current && !preview
+      ? "bg-primary text-white shadow-[0_12px_32px_rgba(255,79,135,.2)]"
+      : "bg-white/[.07] text-white/45";
 
   return (
     <article
@@ -187,21 +192,19 @@ function PlanCard({
           ))}
         </ul>
 
-        <button
-          onClick={onSelect}
-          disabled={current && !preview}
-          className={`mt-auto flex h-14 w-full items-center justify-center gap-2 rounded-xl text-sm font-black transition disabled:cursor-default disabled:opacity-60 ${button}`}
+        <div
+          className={`mt-auto flex h-14 w-full items-center justify-center gap-2 rounded-xl text-sm font-black ${button}`}
         >
           {current && !preview ? (
-            "Current Plan"
+            "Trial Active"
           ) : (
             <>
               {" "}
               <PlanButtonIcon plan={plan.id} />{" "}
-              {preview ? `Preview ${plan.name}` : `Upgrade to ${plan.name}`}
+              {preview ? `Preview ${plan.name}` : "Changes Paused"}
             </>
           )}
-        </button>
+        </div>
       </div>
     </article>
   );
@@ -274,4 +277,9 @@ function UsageTile({
 
 function limitText(limit: number | null, used = 0) {
   return limit === null ? "Unlimited" : `${used} / ${limit}`;
+}
+
+function trialDaysLeft(endsAt: number) {
+  const days = Math.max(0, Math.ceil((endsAt - Date.now()) / 86_400_000));
+  return days === 1 ? "1 day left" : `${days} days left`;
 }

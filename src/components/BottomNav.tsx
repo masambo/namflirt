@@ -1,7 +1,9 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Compass, Crown, Heart, MessageCircle, UserRound } from "lucide-react";
+import { Compass, Crown, Heart, MessageCircle, ShieldCheck, UserRound } from "lucide-react";
+import { useQuery } from "convex/react";
 import { Brand } from "@/components/Brand";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import { api } from "@/lib/api";
 
 const primaryTabs = [
   { to: "/browse", label: "Discover", Icon: Compass },
@@ -16,6 +18,7 @@ const accountTabs = [
 
 export function BottomNav() {
   const { pathname } = useLocation();
+  const adminAccess = useQuery(api.admin.access, {}) as { isAdmin: boolean } | undefined;
   return (
     <>
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-white/8 bg-[#131311] px-3 py-4 lg:flex">
@@ -32,6 +35,14 @@ export function BottomNav() {
           className="mt-auto space-y-1 border-t border-white/8 pt-3"
           aria-label="Account navigation"
         >
+          {adminAccess?.isAdmin ? (
+            <DesktopLink
+              to="/admin"
+              label="Admin dashboard"
+              Icon={ShieldCheck}
+              active={isActive(pathname, "/admin")}
+            />
+          ) : null}
           {accountTabs.map((tab) => (
             <DesktopLink key={tab.to} {...tab} active={isActive(pathname, tab.to)} />
           ))}
@@ -64,7 +75,7 @@ function DesktopLink({
   Icon,
   active,
 }: {
-  to: "/browse" | "/likes" | "/messages" | "/plans" | "/me";
+  to: "/browse" | "/likes" | "/messages" | "/plans" | "/me" | "/admin";
   label: string;
   Icon: typeof Compass;
   active: boolean;

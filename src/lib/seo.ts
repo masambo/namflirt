@@ -71,7 +71,7 @@ export const homeStructuredData: StructuredData[] = [
     url: SITE_URL,
     logo: `${SITE_URL}/namflirt_logo.png`,
     description:
-      "A Namibia-first dating platform for meaningful connections across cultures, languages and places.",
+      "A Namibia-first dating platform for single women and single men seeking meaningful local connections across cultures, languages and places.",
     areaServed: {
       "@type": "Country",
       name: "Namibia",
@@ -85,6 +85,8 @@ export const homeStructuredData: StructuredData[] = [
     url: SITE_URL,
     inLanguage: "en-NA",
     description:
-      "Meet Namibian singles looking for thoughtful, genuine connections across Namibia.",
+      "Dating in Namibia for Namibian singles looking for thoughtful, genuine local connections.",
+    keywords:
+      "dating in Namibia, Namibian dating site, single women in Namibia, single men in Namibia, Namibia singles",
   },
 ];

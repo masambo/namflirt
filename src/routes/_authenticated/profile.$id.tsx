@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import {
   ArrowLeft,
   BadgeCheck,
+  Flag,
   Heart,
   Languages,
   MapPin,
@@ -14,6 +15,14 @@ import {
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { MatchCelebration } from "@/components/MatchCelebration";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { calcAge } from "@/lib/constants";
 import { calcMatch } from "@/lib/match";
 import type { Preferences, Profile } from "@/lib/types";
@@ -30,6 +39,7 @@ type StartConversationResult =
   | { status: "match_required" }
   | { status: "self" }
   | { status: "not_found" };
+type ReportReason = "fake_profile" | "harassment" | "spam" | "inappropriate" | "other";
 
 function ProfileView() {
   const { id } = Route.useParams();
@@ -37,6 +47,10 @@ function ProfileView() {
   const [target, setTarget] = useState<Profile | null>(null);
   const [loadIssue, setLoadIssue] = useState<ProfileLoadIssue | null>(null);
   const [matchOpen, setMatchOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<ReportReason>("fake_profile");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reporting, setReporting] = useState(false);
   const viewer = useQuery(api.profiles.viewer, {}) as
     (Profile & { preferences: Preferences | null }) | null | undefined;
   const likeStatus = useQuery(api.likes.status, { profileId: id }) as
@@ -44,6 +58,7 @@ function ProfileView() {
   const viewProfile = useMutation(api.profiles.viewProfile);
   const toggleLike = useMutation(api.likes.toggle);
   const startConversation = useMutation(api.conversations.start);
+  const submitReport = useMutation(api.reports.submit);
 
   useEffect(() => {
     let active = true;
@@ -129,6 +144,27 @@ function ProfileView() {
       await navigate({ to: "/messages/$id", params: { id: result.conversationId } });
     } catch {
       toast.error("Conversation not started", { description: "Please try again in a moment." });
+    }
+  }
+
+  async function report() {
+    setReporting(true);
+    try {
+      const result = await submitReport({
+        profileId: id,
+        reason: reportReason,
+        details: reportDetails.trim() || undefined,
+      });
+      setReportOpen(false);
+      setReportDetails("");
+      toast.success(
+        result.status === "already_reported" ? "Report already received." : "Report received.",
+        { description: "Our safety team will review this profile." },
+      );
+    } catch {
+      toast.error("Report not sent", { description: "Please try again in a moment." });
+    } finally {
+      setReporting(false);
     }
   }
 
@@ -254,6 +290,12 @@ function ProfileView() {
                 </div>
               </ProfileSection>
             ) : null}
+            <button
+              onClick={() => setReportOpen(true)}
+              className="inline-flex items-center gap-2 px-2 py-2 text-xs font-semibold text-white/30 transition hover:text-red-300"
+            >
+              <Flag className="h-3.5 w-3.5" /> Report this profile
+            </button>
           </section>
         </div>
       </main>
@@ -267,6 +309,67 @@ function ProfileView() {
           void message();
         }}
       />
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="border-white/10 bg-[#191917] text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Report {target?.displayName ?? "this profile"}</DialogTitle>
+            <DialogDescription className="text-white/45">
+              Reports are private. Choose the concern that best describes what happened.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <label className="block">
+              <span className="admin-label">Reason</span>
+              <select
+                value={reportReason}
+                onChange={(event) => setReportReason(event.target.value as ReportReason)}
+                className="admin-input mt-2 w-full"
+              >
+                <option value="fake_profile" className="bg-[#191917]">
+                  Fake or misleading profile
+                </option>
+                <option value="harassment" className="bg-[#191917]">
+                  Harassment or threatening behavior
+                </option>
+                <option value="spam" className="bg-[#191917]">
+                  Spam or solicitation
+                </option>
+                <option value="inappropriate" className="bg-[#191917]">
+                  Inappropriate content
+                </option>
+                <option value="other" className="bg-[#191917]">
+                  Something else
+                </option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="admin-label">Details (optional)</span>
+              <textarea
+                value={reportDetails}
+                onChange={(event) => setReportDetails(event.target.value.slice(0, 500))}
+                placeholder="Add anything that will help our review."
+                rows={4}
+                className="mt-2 w-full resize-none rounded-md border border-white/10 bg-white/[.025] p-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-white/25"
+              />
+              <span className="mt-1 block text-right text-[10px] text-white/25">
+                {reportDetails.length}/500
+              </span>
+            </label>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setReportOpen(false)} className="admin-button-secondary">
+              Cancel
+            </button>
+            <button
+              onClick={() => void report()}
+              disabled={reporting}
+              className="admin-button-primary"
+            >
+              {reporting ? "Sending..." : "Submit report"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -276,7 +379,7 @@ function ProfileLoadFeedback({ issue }: { issue: ProfileLoadIssue }) {
     plan_limit: {
       eyebrow: "Plan limit",
       title: "You've used this month's profile views.",
-      copy: "Upgrade your plan to keep discovering profiles without a monthly viewing limit.",
+      copy: "Premium trial access is available while payment setup is being completed.",
       action: "See plans",
       to: "/plans" as const,
     },

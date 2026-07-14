@@ -1,7 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { useClerk } from "@clerk/react";
-import { BadgeCheck, Crown, Edit3, LogOut, MapPin, Settings, Sparkles } from "lucide-react";
+import {
+  BadgeCheck,
+  CalendarCheck,
+  Crown,
+  Edit3,
+  LogOut,
+  MapPin,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { calcAge } from "@/lib/constants";
 import { resolvePlan } from "@/lib/plans";
@@ -12,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/me")({ component: Me });
 
 function Me() {
   const profile = useQuery(api.profiles.viewer, {}) as Profile | null | undefined;
+  const adminAccess = useQuery(api.admin.access, {}) as { isAdmin: boolean } | undefined;
   const { signOut } = useClerk();
   const navigate = useNavigate();
   if (!profile)
@@ -72,6 +83,24 @@ function Me() {
               Keep your profile current. Small details give the right person a much better way to
               say hello.
             </p>
+            {plan.id === "premium" ? (
+              <div className="mt-5 rounded-2xl border border-primary/30 bg-primary/10 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-white">
+                    <CalendarCheck className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-black text-white">
+                      Congratulations, your 14-day Premium trial is active.
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-white/50">
+                      Plan changes and VIP access are paused while the payment gateway is being
+                      completed.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
             <div className="mt-7 grid grid-cols-3 gap-2">
               <Stat value={profile.photos.length} label="Photos" />
               <Stat value={profile.languages.length} label="Languages" />
@@ -90,6 +119,12 @@ function Me() {
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
+            {adminAccess?.isAdmin ? (
+              <Link to="/admin" className="settings-row sm:col-span-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                <span>Admin dashboard</span>
+              </Link>
+            ) : null}
             <Link to="/onboarding" className="settings-row">
               <Settings className="h-4 w-4" />
               <span>Edit preferences</span>
@@ -100,7 +135,7 @@ function Me() {
             </Link>
             <Link to="/plans" className="settings-row sm:col-span-2">
               <Crown className="h-4 w-4" />
-              <span>Choose your plan</span>
+              <span>Premium trial</span>
               <span className="ml-auto text-xs text-white/30">{plan.name}</span>
             </Link>
           </div>

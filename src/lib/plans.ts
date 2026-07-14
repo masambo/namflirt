@@ -51,7 +51,7 @@ export const PLAN_DEFINITIONS: PlanDefinition[] = [
   {
     id: "vip",
     name: "VIP",
-    price: "N$299",
+    price: "N$500",
     cadence: "/mo",
     tone: "sun",
     badge: "Best value",

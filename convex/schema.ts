@@ -23,7 +23,10 @@ export default defineSchema({
     verified: v.boolean(),
     completed: v.boolean(),
     isDemo: v.boolean(),
+    status: v.optional(v.union(v.literal("active"), v.literal("suspended"))),
+    moderationNote: v.optional(v.string()),
     plan: v.optional(v.union(v.literal("free"), v.literal("premium"), v.literal("vip"))),
+    premiumTrialEndsAt: v.optional(v.number()),
     usageMonth: v.optional(v.string()),
     usageDay: v.optional(v.string()),
     messagesUsedThisMonth: v.optional(v.number()),
@@ -78,4 +81,30 @@ export default defineSchema({
     read: v.boolean(),
     createdAt: v.number(),
   }).index("by_recipient", ["recipientProfileId", "createdAt"]),
+  reports: defineTable({
+    reporterProfileId: v.id("profiles"),
+    reportedProfileId: v.id("profiles"),
+    reason: v.union(
+      v.literal("fake_profile"),
+      v.literal("harassment"),
+      v.literal("spam"),
+      v.literal("inappropriate"),
+      v.literal("other"),
+    ),
+    details: v.optional(v.string()),
+    status: v.union(v.literal("open"), v.literal("resolved"), v.literal("dismissed")),
+    createdAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+    resolvedBy: v.optional(v.string()),
+  })
+    .index("by_status", ["status", "createdAt"])
+    .index("by_reported", ["reportedProfileId", "createdAt"])
+    .index("by_reporter", ["reporterProfileId", "createdAt"]),
+  adminAudit: defineTable({
+    adminUserId: v.string(),
+    action: v.string(),
+    targetProfileId: v.optional(v.id("profiles")),
+    details: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_created_at", ["createdAt"]),
 });
