@@ -1,37 +1,102 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Compass, Heart, MessageCircle, User as UserIcon } from "lucide-react";
+import { Compass, Crown, Heart, MessageCircle, UserRound } from "lucide-react";
+import { Brand } from "@/components/Brand";
+import { NotificationCenter } from "@/components/NotificationCenter";
 
-const tabs = [
+const primaryTabs = [
   { to: "/browse", label: "Discover", Icon: Compass },
   { to: "/likes", label: "Likes", Icon: Heart },
   { to: "/messages", label: "Chats", Icon: MessageCircle },
-  { to: "/me", label: "Profile", Icon: UserIcon },
+] as const;
+
+const accountTabs = [
+  { to: "/plans", label: "Plans", Icon: Crown },
+  { to: "/me", label: "Your profile", Icon: UserRound },
 ] as const;
 
 export function BottomNav() {
   const { pathname } = useLocation();
   return (
-    <nav className="fixed bottom-4 inset-x-0 z-40 px-4 pointer-events-none">
-      <div className="pointer-events-auto mx-auto max-w-sm rounded-full bg-card/85 backdrop-blur-xl border hairline shadow-card grid grid-cols-4 p-1.5">
-        {tabs.map(({ to, label, Icon }) => {
-          const active = pathname === to || pathname.startsWith(to + "/");
-          return (
-            <Link
-              key={to}
-              to={to}
-              className={`group relative flex flex-col items-center justify-center gap-0.5 rounded-full py-2 text-[10px] font-medium tracking-wide uppercase transition-all ${
-                active
-                  ? "bg-primary text-primary-foreground shadow-glow"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              aria-label={label}
-            >
-              <Icon className={`h-[18px] w-[18px] ${active ? "fill-current/20" : ""}`} />
-              <span className={active ? "" : "opacity-80"}>{label}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+    <>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-white/8 bg-[#131311] px-3 py-4 lg:flex">
+        <div className="px-2 pb-6 pt-1">
+          <Brand to="/browse" />
+        </div>
+        <nav className="space-y-1" aria-label="Main navigation">
+          {primaryTabs.map((tab) => (
+            <DesktopLink key={tab.to} {...tab} active={isActive(pathname, tab.to)} />
+          ))}
+          <NotificationCenter variant="desktop" />
+        </nav>
+        <nav
+          className="mt-auto space-y-1 border-t border-white/8 pt-3"
+          aria-label="Account navigation"
+        >
+          {accountTabs.map((tab) => (
+            <DesktopLink key={tab.to} {...tab} active={isActive(pathname, tab.to)} />
+          ))}
+        </nav>
+      </aside>
+
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-white/10 bg-[#151513]/96 px-1 pt-1.5 shadow-[0_-16px_45px_rgba(0,0,0,.32)] backdrop-blur-xl lg:hidden"
+        style={{ paddingBottom: "max(0.45rem, env(safe-area-inset-bottom))" }}
+        aria-label="Main navigation"
+      >
+        {primaryTabs.slice(0, 2).map((tab) => (
+          <MobileLink key={tab.to} {...tab} active={isActive(pathname, tab.to)} />
+        ))}
+        <MobileLink {...primaryTabs[2]} active={isActive(pathname, primaryTabs[2].to)} />
+        <NotificationCenter variant="mobile" />
+        <MobileLink
+          {...accountTabs[1]}
+          active={isActive(pathname, accountTabs[1].to)}
+          label="You"
+        />
+      </nav>
+    </>
   );
+}
+
+function DesktopLink({
+  to,
+  label,
+  Icon,
+  active,
+}: {
+  to: "/browse" | "/likes" | "/messages" | "/plans" | "/me";
+  label: string;
+  Icon: typeof Compass;
+  active: boolean;
+}) {
+  return (
+    <Link to={to} className={`app-nav-link ${active ? "app-nav-link-active" : ""}`}>
+      <Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.4 : 1.8} />
+      <span>{label}</span>
+    </Link>
+  );
+}
+
+function MobileLink({
+  to,
+  label,
+  Icon,
+  active,
+}: {
+  to: "/browse" | "/likes" | "/messages" | "/me";
+  label: string;
+  Icon: typeof Compass;
+  active: boolean;
+}) {
+  return (
+    <Link to={to} className={`mobile-nav-item ${active ? "text-primary" : "text-white/42"}`}>
+      <Icon className="h-[19px] w-[19px]" strokeWidth={active ? 2.5 : 1.8} />
+      <span>{label}</span>
+      {active ? <span className="absolute top-0 h-0.5 w-5 rounded-full bg-primary" /> : null}
+    </Link>
+  );
+}
+
+function isActive(pathname: string, to: string) {
+  return pathname === to || pathname.startsWith(`${to}/`);
 }

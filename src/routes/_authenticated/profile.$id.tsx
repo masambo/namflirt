@@ -1,254 +1,349 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ChevronLeft, Heart, MapPin, Languages as LangIcon, Sparkles, MessageCircle } from "lucide-react";
+import type React from "react";
+import { useMutation, useQuery } from "convex/react";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  Heart,
+  Languages,
+  MapPin,
+  MessageCircle,
+  Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
-import { calcMatch, type ProfileLike, type PrefsLike, pairOrdered } from "@/lib/match";
+import { api } from "@/lib/api";
+import { MatchCelebration } from "@/components/MatchCelebration";
 import { calcAge } from "@/lib/constants";
-import { MatchBadge } from "@/components/MatchBadge";
+import { calcMatch } from "@/lib/match";
+import type { Preferences, Profile } from "@/lib/types";
 
-export const Route = createFileRoute("/_authenticated/profile/$id")({
-  component: ProfileView,
-});
+export const Route = createFileRoute("/_authenticated/profile/$id")({ component: ProfileView });
 
-interface FullProfile extends ProfileLike {
-  display_name: string | null;
-  bio: string | null;
-  avatar_url: string | null;
-  photos: string[] | null;
-  region: string | null;
-  religion: string | null;
-  occupation: string | null;
-}
+type ProfileLoadIssue = "plan_limit" | "profile_required" | "not_found" | "unexpected";
+type ProfileLoadResult =
+  | { status: "ready"; profile: Profile }
+  | { status: "plan_limit"; plan: string; limit: number }
+  | { status: "profile_required" | "not_found" };
+type StartConversationResult =
+  | { status: "ready"; conversationId: string }
+  | { status: "match_required" }
+  | { status: "self" }
+  | { status: "not_found" };
 
 function ProfileView() {
   const { id } = Route.useParams();
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const [me, setMe] = useState<ProfileLike | null>(null);
-  const [prefs, setPrefs] = useState<PrefsLike | null>(null);
-  const [target, setTarget] = useState<FullProfile | null>(null);
-  const [liked, setLiked] = useState(false);
-  const [matched, setMatched] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [activeIdx, setActiveIdx] = useState(0);
+  const [target, setTarget] = useState<Profile | null>(null);
+  const [loadIssue, setLoadIssue] = useState<ProfileLoadIssue | null>(null);
+  const [matchOpen, setMatchOpen] = useState(false);
+  const viewer = useQuery(api.profiles.viewer, {}) as
+    (Profile & { preferences: Preferences | null }) | null | undefined;
+  const likeStatus = useQuery(api.likes.status, { profileId: id }) as
+    { liked: boolean; matched: boolean } | undefined;
+  const viewProfile = useMutation(api.profiles.viewProfile);
+  const toggleLike = useMutation(api.likes.toggle);
+  const startConversation = useMutation(api.conversations.start);
 
   useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const [meR, prefR, targetR, likeR, reciprocal] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", user.id).single(),
-        supabase.from("preferences").select("*").eq("user_id", user.id).single(),
-        supabase.from("profiles").select("*").eq("id", id).single(),
-        supabase.from("profile_likes").select("id").eq("from_user_id", user.id).eq("to_user_id", id).maybeSingle(),
-        supabase.from("profile_likes").select("id").eq("from_user_id", id).eq("to_user_id", user.id).maybeSingle(),
-      ]);
-      setMe(meR.data as ProfileLike);
-      setPrefs(prefR.data as unknown as PrefsLike);
-      setTarget(targetR.data as FullProfile);
-      setLiked(Boolean(likeR.data));
-      setMatched(Boolean(likeR.data && reciprocal.data));
-    })();
-  }, [user, id]);
-
-  if (!target || !me || !prefs || !user) {
-    return <div className="px-5 py-12 text-center text-muted-foreground">Loading…</div>;
-  }
-
-  const m = calcMatch(me, prefs, target);
-  const age = calcAge(target.date_of_birth);
-  const photos = (target.photos && target.photos.length > 0)
-    ? target.photos
-    : target.avatar_url ? [target.avatar_url] : [];
-  const main = photos[activeIdx] ?? null;
-
-  async function toggleLike() {
-    if (!user || !target) return;
-    setBusy(true);
-    try {
-      if (liked) {
-        await supabase.from("profile_likes").delete().eq("from_user_id", user.id).eq("to_user_id", target.id);
-        setLiked(false);
-        setMatched(false);
-      } else {
-        const { error } = await supabase.from("profile_likes").insert({ from_user_id: user.id, to_user_id: target.id });
-        if (error) throw error;
-        setLiked(true);
-        // check reciprocal
-        const { data: rec } = await supabase.from("profile_likes").select("id").eq("from_user_id", target.id).eq("to_user_id", user.id).maybeSingle();
-        if (rec) {
-          setMatched(true);
-          toast.success(`It's a match! 🎉 You and ${target.display_name} liked each other.`);
-        } else {
-          toast.success("Interest sent!");
+    let active = true;
+    setTarget(null);
+    setLoadIssue(null);
+    void viewProfile({ profileId: id })
+      .then((result: ProfileLoadResult) => {
+        if (!active) return;
+        if (result.status === "ready") {
+          setTarget(result.profile);
+          return;
         }
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
-    } finally {
-      setBusy(false);
-    }
-  }
+        setLoadIssue(result.status);
+      })
+      .catch((error) => {
+        if (import.meta.env.DEV) console.error("Profile could not be opened.", error);
+        if (active) setLoadIssue("unexpected");
+      });
+    return () => {
+      active = false;
+    };
+  }, [id, viewProfile]);
 
-  async function startChat() {
-    if (!user || !target) return;
-    const [a, b] = pairOrdered(user.id, target.id);
-    // try insert (idempotent via unique)
-    const { data: existing } = await supabase.from("conversations").select("id").eq("user_a", a).eq("user_b", b).maybeSingle();
-    let convId = existing?.id;
-    if (!convId) {
-      const { data: created, error } = await supabase.from("conversations").insert({ user_a: a, user_b: b }).select("id").single();
-      if (error) {
-        toast.error(error.message);
+  if (loadIssue) return <ProfileLoadFeedback issue={loadIssue} />;
+
+  if (!target || !viewer || !likeStatus)
+    return (
+      <div className="grid min-h-[70vh] place-items-center text-sm text-white/30">
+        Loading profile...
+      </div>
+    );
+  const match = calcMatch(
+    viewer,
+    viewer.preferences ?? {
+      minAge: 20,
+      maxAge: 45,
+      preferredRegions: [],
+      preferredLanguages: [],
+      preferredTribes: [],
+      tribeImportance: "open_to_all",
+      preferredHobbies: [],
+      openToLongDistance: true,
+    },
+    target,
+  );
+
+  async function like() {
+    try {
+      const result = await toggleLike({ profileId: id });
+      if (result.matched) {
+        setMatchOpen(true);
         return;
       }
-      convId = created.id;
+      toast.success(result.liked ? "Like sent." : "Like removed.");
+    } catch {
+      toast.error("Like not updated", { description: "Please try again in a moment." });
     }
-    navigate({ to: "/messages/$id", params: { id: convId! } });
+  }
+
+  async function message() {
+    try {
+      const result = (await startConversation({ profileId: id })) as StartConversationResult;
+      if (result.status === "match_required") {
+        toast.info("Match first", {
+          description:
+            "You can start chatting after you both like each other. VIP can message before matching.",
+          id: "conversation-match-required",
+        });
+        return;
+      }
+      if (result.status === "self") {
+        toast.info("This is your profile", {
+          description: "Choose another profile to start a conversation.",
+        });
+        return;
+      }
+      if (result.status === "not_found") {
+        toast.error("Profile unavailable", {
+          description: "This profile can no longer receive messages.",
+        });
+        return;
+      }
+      await navigate({ to: "/messages/$id", params: { id: result.conversationId } });
+    } catch {
+      toast.error("Conversation not started", { description: "Please try again in a moment." });
+    }
   }
 
   return (
-    <div className="mx-auto max-w-2xl pb-32">
-      <header className="px-5 pt-6 pb-3 flex items-center justify-between">
-        <Link to="/browse" className="inline-flex items-center gap-2 rounded-full border hairline bg-card/60 backdrop-blur px-3.5 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition">
-          <ChevronLeft className="h-4 w-4" /> Back
+    <>
+      <main className="app-page page-width max-w-6xl pt-4 md:pt-8">
+        <Link to="/browse" className="button-ghost">
+          <ArrowLeft className="h-4 w-4" /> Discover
         </Link>
-      </header>
-
-      <div className="px-4">
-        <div className="relative aspect-[4/5] rounded-[2rem] overflow-hidden bg-card shadow-card border hairline">
-          {main ? (
-            <img key={main} src={main} alt={target.display_name ?? ""} className="absolute inset-0 h-full w-full object-cover animate-in fade-in duration-300" />
-          ) : (
-            <div className="absolute inset-0 bg-ember grid place-items-center">
-              <Heart className="h-20 w-20 text-primary/40" />
+        <div className="mt-4 grid gap-5 lg:grid-cols-[1.05fr_.95fr]">
+          <section className="relative min-h-[650px] overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#1b1b18] lg:sticky lg:top-5 lg:h-[calc(100vh-3rem)] lg:min-h-[700px]">
+            {target.photos[0] ? (
+              <img
+                src={target.photos[0]}
+                alt={target.displayName}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : null}
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/20" />
+            <span className="absolute right-5 top-5 rounded-full bg-primary px-3 py-2 text-xs font-black text-white shadow-[0_8px_24px_rgba(255,79,135,.3)]">
+              {match.score}% fit
+            </span>
+            <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
+              <div className="flex items-center gap-2">
+                <h1 className="text-5xl font-semibold tracking-[-.065em] sm:text-7xl">
+                  {target.displayName}, {calcAge(target.dateOfBirth)}
+                </h1>
+                {target.verified ? (
+                  <BadgeCheck className="h-7 w-7 fill-primary text-black" />
+                ) : null}
+              </div>
+              <p className="mt-3 flex items-center gap-1.5 text-sm text-white/60">
+                <MapPin className="h-4 w-4" /> {target.town}, {target.region}
+              </p>
+              <div className="mt-5 flex gap-3">
+                <button
+                  onClick={like}
+                  className={`grid h-14 w-14 place-items-center rounded-full border transition ${likeStatus.liked ? "border-primary bg-primary text-white" : "border-white/15 bg-black/25 backdrop-blur-lg hover:bg-white hover:text-black"}`}
+                  aria-label={likeStatus.liked ? "Remove like" : "Like profile"}
+                >
+                  <Heart className={`h-5 w-5 ${likeStatus.liked ? "fill-current" : ""}`} />
+                </button>
+                <button onClick={message} className="button-primary flex-1 justify-center">
+                  <MessageCircle className="h-4 w-4" />{" "}
+                  {likeStatus.matched ? "Message your match" : "Message with VIP"}
+                </button>
+              </div>
             </div>
-          )}
-          {photos.length > 1 && (
-            <div className="absolute top-3 left-0 right-0 px-3 flex gap-1 z-10">
-              {photos.map((_, i) => (
-                <div key={i} className={`h-1 flex-1 rounded-full ${i === activeIdx ? "bg-white" : "bg-white/30"}`} />
-              ))}
-            </div>
-          )}
-          <button aria-label="Previous" onClick={() => setActiveIdx((i) => (i - 1 + photos.length) % Math.max(1, photos.length))} className="absolute inset-y-0 left-0 w-1/3 z-0" />
-          <button aria-label="Next" onClick={() => setActiveIdx((i) => (i + 1) % Math.max(1, photos.length))} className="absolute inset-y-0 right-0 w-1/3 z-0" />
-          <div className="absolute top-4 right-4"><MatchBadge score={m.score} size="lg" /></div>
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-6 text-white">
-            <h1 className="font-display text-5xl font-medium leading-[1]">
-              {target.display_name}
-              {age ? <span className="font-light italic text-white/75"> · {age}</span> : null}
-            </h1>
-            <div className="mt-2 flex items-center gap-1.5 text-xs uppercase tracking-wider text-white/80">
-              <MapPin className="h-3.5 w-3.5" /> {target.town ?? "—"}, {target.region ?? "Namibia"}
-            </div>
-          </div>
+          </section>
+          <section className="space-y-4 pb-20">
+            <ProfileSection label="About">
+              <p className="text-xl leading-relaxed tracking-[-.02em] text-white/80">
+                {target.bio || "Still writing their story."}
+              </p>
+            </ProfileSection>
+            <ProfileSection label="Why you fit">
+              <div className="space-y-3">
+                {match.sharedLanguages.length ? (
+                  <Reason
+                    icon={<Languages />}
+                    text={
+                      <>
+                        You both speak <strong>{match.sharedLanguages.join(" and ")}</strong>
+                      </>
+                    }
+                  />
+                ) : null}
+                {match.sharedHobbies.length ? (
+                  <Reason
+                    icon={<Sparkles />}
+                    text={
+                      <>
+                        Shared energy around <strong>{match.sharedHobbies.join(", ")}</strong>
+                      </>
+                    }
+                  />
+                ) : null}
+                {target.region === viewer.region ? (
+                  <Reason
+                    icon={<MapPin />}
+                    text={
+                      <>
+                        You're both rooted in <strong>{target.region}</strong>
+                      </>
+                    }
+                  />
+                ) : null}
+              </div>
+            </ProfileSection>
+            {target.photos.length > 1 ? (
+              <ProfileSection label="A little more">
+                <div className="grid grid-cols-2 gap-3">
+                  {target.photos.slice(1).map((photo, index) => (
+                    <img
+                      key={photo}
+                      src={photo}
+                      alt={`${target.displayName} photo ${index + 2}`}
+                      loading="lazy"
+                      className="aspect-[.8] w-full rounded-2xl object-cover"
+                    />
+                  ))}
+                </div>
+              </ProfileSection>
+            ) : null}
+            <ProfileSection label="The details">
+              <div className="grid grid-cols-2 gap-2">
+                <Detail label="Looking for" value={target.relationshipGoal} />
+                <Detail label="Culture" value={target.tribe} />
+                <Detail label="Languages" value={target.languages.join(", ")} />
+                <Detail label="Work" value={target.occupation} />
+                <Detail label="Education" value={target.education} />
+                <Detail label="Faith" value={target.religion} />
+              </div>
+            </ProfileSection>
+            {target.hobbies.length ? (
+              <ProfileSection label="Into">
+                <div className="flex flex-wrap gap-2">
+                  {target.hobbies.map((hobby) => (
+                    <span className="profile-chip" key={hobby}>
+                      {hobby}
+                    </span>
+                  ))}
+                </div>
+              </ProfileSection>
+            ) : null}
+          </section>
         </div>
+      </main>
+      <MatchCelebration
+        open={matchOpen}
+        onOpenChange={setMatchOpen}
+        viewer={viewer}
+        match={target}
+        onMessage={() => {
+          setMatchOpen(false);
+          void message();
+        }}
+      />
+    </>
+  );
+}
 
-        {photos.length > 1 && (
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-            {photos.map((p, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveIdx(i)}
-                className={`shrink-0 h-16 w-16 rounded-2xl overflow-hidden border-2 transition ${i === activeIdx ? "border-primary" : "border-transparent opacity-70"}`}
-              >
-                <img src={p} alt="" className="h-full w-full object-cover" />
-              </button>
-            ))}
-          </div>
-        )}
+function ProfileLoadFeedback({ issue }: { issue: ProfileLoadIssue }) {
+  const content = {
+    plan_limit: {
+      eyebrow: "Plan limit",
+      title: "You've used this month's profile views.",
+      copy: "Upgrade your plan to keep discovering profiles without a monthly viewing limit.",
+      action: "See plans",
+      to: "/plans" as const,
+    },
+    profile_required: {
+      eyebrow: "Profile needed",
+      title: "Complete your profile first.",
+      copy: "Finish your profile so we can personalize the people you discover.",
+      action: "Complete profile",
+      to: "/onboarding" as const,
+    },
+    not_found: {
+      eyebrow: "Profile unavailable",
+      title: "This profile isn't available.",
+      copy: "It may have been removed or is no longer visible.",
+      action: "Back to discover",
+      to: "/browse" as const,
+    },
+    unexpected: {
+      eyebrow: "Something went wrong",
+      title: "We couldn't open this profile.",
+      copy: "Return to Discover and try again in a moment.",
+      action: "Back to discover",
+      to: "/browse" as const,
+    },
+  }[issue];
 
-        {target.bio && (
-          <Section title="About">
-            <p className="font-display text-lg leading-snug italic text-foreground/90">"{target.bio}"</p>
-          </Section>
-        )}
-
-        <Section title="Why you match">
-          <div className="space-y-3 text-sm">
-            {m.sharedLanguages.length > 0 && (
-              <div className="flex items-start gap-3">
-                <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 grid place-items-center text-primary"><LangIcon className="h-4 w-4" /></div>
-                <span className="pt-1.5">You both speak <b>{m.sharedLanguages.join(", ")}</b></span>
-              </div>
-            )}
-            {m.sharedHobbies.length > 0 && (
-              <div className="flex items-start gap-3">
-                <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 grid place-items-center text-primary"><Sparkles className="h-4 w-4" /></div>
-                <span className="pt-1.5">Shared interests: <b>{m.sharedHobbies.join(", ")}</b></span>
-              </div>
-            )}
-            {target.region === me.region && me.region && (
-              <div className="flex items-start gap-3">
-                <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 grid place-items-center text-primary"><MapPin className="h-4 w-4" /></div>
-                <span className="pt-1.5">Both in <b>{target.region}</b></span>
-              </div>
-            )}
-          </div>
-        </Section>
-
-        {(target.tribe || target.languages?.length || target.hobbies?.length) ? (
-          <Section title="Profile">
-            <Detail label="Cultural background" value={target.tribe} />
-            <Detail label="Languages" value={target.languages?.join(", ")} />
-            <Detail label="Hobbies" value={target.hobbies?.join(", ")} />
-            <Detail label="Religion" value={target.religion} />
-            <Detail label="Occupation" value={target.occupation} />
-            <Detail label="Looking for" value={target.relationship_goal} />
-          </Section>
-        ) : null}
-
-        <div className="fixed bottom-24 inset-x-0 px-4 z-30 pointer-events-none">
-          <div className="pointer-events-auto mx-auto max-w-md grid grid-cols-2 gap-3">
-          <button
-            onClick={toggleLike}
-            disabled={busy}
-            className={`rounded-full py-3.5 font-semibold text-sm border transition shadow-card backdrop-blur ${
-              liked
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-card/90 border-border hover:border-primary"
-            }`}
-          >
-            <Heart className={`inline h-4 w-4 mr-1.5 ${liked ? "fill-current" : ""}`} />
-            {liked ? "Liked" : "Like"}
-          </button>
-          <button
-            onClick={startChat}
-            disabled={!matched && !liked}
-            className="rounded-full py-3.5 font-semibold text-sm bg-foreground text-background shadow-card disabled:opacity-50"
-          >
-            <MessageCircle className="inline h-4 w-4 mr-1.5" />
-            {matched ? "Message" : "Send message"}
-          </button>
-          </div>
-        </div>
-        {!matched && (
-          <p className="text-center text-xs text-muted-foreground mt-8">
-            Like each other to unlock a guaranteed reply, or send a message to start things off.
-          </p>
-        )}
+  return (
+    <div className="grid min-h-[70vh] place-items-center px-6 text-center">
+      <div>
+        <p className="eyebrow justify-center">{content.eyebrow}</p>
+        <h1 className="mt-4 text-4xl font-semibold tracking-[-.055em]">{content.title}</h1>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/45">
+          {content.copy}
+        </p>
+        <Link to={content.to} className="button-primary mt-7">
+          {content.action}
+        </Link>
       </div>
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function ProfileSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="mt-5 rounded-[2rem] bg-card p-6 shadow-card border hairline">
-      <p className="text-[10px] font-medium tracking-[0.22em] uppercase text-muted-foreground mb-3">{title}</p>
-      {children}
+    <div className="rounded-[2rem] border border-white/8 bg-[#191917] p-6 sm:p-8">
+      <p className="eyebrow">{label}</p>
+      <div className="mt-5">{children}</div>
     </div>
   );
 }
 
-function Detail({ label, value }: { label: string; value?: string | null }) {
-  if (!value) return null;
+function Reason({ icon, text }: { icon: React.ReactNode; text: React.ReactNode }) {
   return (
-    <div className="flex justify-between gap-3 py-2.5 text-sm border-b hairline last:border-0">
-      <span className="text-muted-foreground text-[11px] uppercase tracking-wider">{label}</span>
-      <span className="text-right font-medium">{value}</span>
+    <div className="flex items-center gap-3 rounded-2xl bg-white/[.035] p-3 text-sm text-white/60">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/12 text-primary [&>svg]:h-4 [&>svg]:w-4">
+        {icon}
+      </span>
+      <span>{text}</span>
     </div>
   );
+}
+
+function Detail({ label, value }: { label: string; value?: string }) {
+  return value ? (
+    <div className="rounded-2xl bg-white/[.035] p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-white/25">{label}</p>
+      <p className="mt-1.5 text-sm font-semibold capitalize text-white/75">{value}</p>
+    </div>
+  ) : null;
 }

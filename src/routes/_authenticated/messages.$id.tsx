@@ -1,137 +1,189 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, Send } from "lucide-react";
+import { useMutation, useQuery } from "convex/react";
+import { ArrowLeft, Check, CheckCheck, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
+import { api } from "@/lib/api";
+import { isOnline, presenceLabel } from "@/lib/presence";
+import type { Message, Profile } from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated/messages/$id")({
   component: ConversationView,
 });
 
-interface Msg {
-  id: string;
-  sender_id: string;
-  body: string;
-  created_at: string;
+interface Detail {
+  other: Profile | null;
+  messages: Message[];
+  viewerProfileId: string;
+  canSeeReadReceipts: boolean;
 }
 
-interface OtherProfile { id: string; display_name: string | null; avatar_url: string | null }
+type SendMessageResult =
+  | { status: "sent"; messageId: string }
+  | { status: "plan_limit"; plan: string; limit: number }
+  | { status: "not_found" }
+  | { status: "empty" };
 
 function ConversationView() {
-  const { id: convId } = Route.useParams();
-  const { user } = useAuth();
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [other, setOther] = useState<OtherProfile | null>(null);
+  const { id } = Route.useParams();
+  const detail = useQuery(api.conversations.detail, { conversationId: id }) as
+    Detail | null | undefined;
+  const sendMessage = useMutation(api.conversations.send);
+  const markRead = useMutation(api.conversations.markRead);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [now, setNow] = useState(Date.now());
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const messageCount = detail?.messages.length;
 
   useEffect(() => {
-    if (!user) return;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    (async () => {
-      const [{ data: conv }, { data: msgs }] = await Promise.all([
-        supabase.from("conversations").select("*").eq("id", convId).single(),
-        supabase.from("messages").select("*").eq("conversation_id", convId).order("created_at", { ascending: true }),
-      ]);
-      if (conv) {
-        const otherId = conv.user_a === user.id ? conv.user_b : conv.user_a;
-        const { data: o } = await supabase.from("profiles").select("id, display_name, avatar_url").eq("id", otherId).single();
-        setOther(o as OtherProfile);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [detail?.messages.length]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (messageCount === undefined) return;
+    function markVisibleMessagesRead() {
+      if (document.visibilityState === "visible") {
+        void markRead({ conversationId: id });
       }
-      setMessages((msgs ?? []) as Msg[]);
+    }
+    markVisibleMessagesRead();
+    document.addEventListener("visibilitychange", markVisibleMessagesRead);
+    return () => document.removeEventListener("visibilitychange", markVisibleMessagesRead);
+  }, [id, markRead, messageCount]);
 
-      channel = supabase
-        .channel(`conv-${convId}`)
-        .on("postgres_changes",
-          { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${convId}` },
-          (payload) => {
-            setMessages((prev) => [...prev, payload.new as Msg]);
-          })
-        .subscribe();
-    })();
-    return () => {
-      if (channel) supabase.removeChannel(channel);
-    };
-  }, [convId, user]);
-
-  useEffect(() => {
-    scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages.length]);
-
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
-    if (!user || !text.trim()) return;
-    const body = text.trim().slice(0, 1000);
+  async function send(event: React.FormEvent) {
+    event.preventDefault();
+    const body = text.trim();
+    if (!body) return;
     setBusy(true);
+    setText("");
     try {
-      const { error } = await supabase.from("messages").insert({
-        conversation_id: convId,
-        sender_id: user.id,
-        body,
+      const result = (await sendMessage({ conversationId: id, body })) as SendMessageResult;
+      if (result.status === "sent") return;
+      setText(body);
+      if (result.status === "plan_limit") {
+        toast.info("Monthly message limit reached", {
+          description: "Upgrade your plan to continue messaging without a monthly limit.",
+        });
+        return;
+      }
+      toast.error("Message not sent", {
+        description:
+          result.status === "not_found"
+            ? "This conversation is no longer available."
+            : "Write a message before sending.",
       });
-      if (error) throw error;
-      await supabase.from("conversations")
-        .update({ last_message: body, last_message_at: new Date().toISOString() })
-        .eq("id", convId);
-      setText("");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+    } catch {
+      setText(body);
+      toast.error("Message not sent", {
+        description: "Your message is still here. Please try again.",
+      });
     } finally {
       setBusy(false);
     }
   }
 
-  return (
-    <div className="flex flex-col h-[calc(100vh-5.5rem)] md:h-[calc(100vh-2rem)] md:rounded-[2rem] md:border md:hairline md:bg-card md:my-4 md:overflow-hidden">
-      <header className="flex items-center gap-3 px-4 py-3 border-b hairline bg-card/90 backdrop-blur sticky top-0 z-10">
-        <Link to="/messages" className="md:hidden text-muted-foreground rounded-full border hairline p-2 hover:text-foreground transition"><ChevronLeft className="h-4 w-4" /></Link>
-        {other && (
-          <Link to="/profile/$id" params={{ id: other.id }} className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="h-10 w-10 rounded-full bg-secondary overflow-hidden ring-1 ring-[oklch(1_0_0/0.08)]">
-              {other.avatar_url ? <img src={other.avatar_url} alt="" className="h-full w-full object-cover" /> : null}
-            </div>
-            <div>
-              <div className="font-display text-lg leading-none">{other.display_name}</div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">View profile</div>
-            </div>
-          </Link>
-        )}
-      </header>
-
-      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-5 space-y-2">
-        {messages.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="font-display text-2xl italic">Say hi 👋</p>
-            <p className="mt-2 text-sm text-muted-foreground">First impressions matter — be yourself.</p>
-          </div>
-        ) : messages.map((m) => {
-          const mine = m.sender_id === user?.id;
-          return (
-            <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[75%] rounded-3xl px-4 py-2.5 text-sm leading-relaxed ${
-                mine ? "bg-primary text-primary-foreground rounded-br-md shadow-glow" : "bg-card border hairline rounded-bl-md"
-              }`}>
-                {m.body}
-              </div>
-            </div>
-          );
-        })}
+  if (!detail)
+    return (
+      <div className="grid h-[70vh] place-items-center text-sm text-white/30">
+        Loading conversation…
       </div>
-
-      <form onSubmit={send} className="border-t hairline p-3 flex gap-2 bg-card/80 backdrop-blur">
+    );
+  const other = detail.other;
+  const otherOnline = isOnline(other?.lastActive, now);
+  return (
+    <div className="flex h-[calc(100vh-8rem)] min-h-[560px] flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#181816] md:h-[calc(100vh-10rem)]">
+      <header className="flex items-center gap-3 border-b border-white/8 px-4 py-3.5">
+        <Link to="/messages" className="icon-button md:hidden">
+          <ArrowLeft className="h-4 w-4" />
+        </Link>
+        <Link
+          to="/profile/$id"
+          params={{ id: other?._id ?? "" }}
+          className="flex min-w-0 flex-1 items-center gap-3"
+        >
+          <div className="h-11 w-11 overflow-hidden rounded-full bg-white/5">
+            {other?.photos[0] ? (
+              <img src={other.photos[0]} alt="" className="h-full w-full object-cover" />
+            ) : null}
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-semibold tracking-[-.025em]">{other?.displayName}</h1>
+            <p
+              className={`mt-0.5 flex items-center gap-1.5 text-[10px] font-semibold ${
+                otherOnline ? "text-[#55d89a]" : "text-white/35"
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${otherOnline ? "bg-[#55d89a]" : "bg-white/20"}`}
+              />
+              {presenceLabel(other?.lastActive, now)}
+            </p>
+          </div>
+        </Link>
+      </header>
+      <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+        <div className="mx-auto mb-8 max-w-xs text-center">
+          <Sparkles className="mx-auto h-4 w-4 text-primary" />
+          <p className="mt-3 text-xs leading-relaxed text-white/30">
+            You matched because something aligned. Stay curious, respectful and real.
+          </p>
+        </div>
+        <div className="space-y-2.5">
+          {detail.messages.map((message) => {
+            const mine = message.senderProfileId === detail.viewerProfileId;
+            return (
+              <div key={message._id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[78%] rounded-[1.35rem] px-4 py-3 text-sm leading-relaxed ${mine ? "rounded-br-md bg-primary text-white" : "rounded-bl-md bg-white/[.07] text-white/80"}`}
+                >
+                  <p>{message.body}</p>
+                  <span
+                    className={`mt-1 flex items-center justify-end gap-1.5 text-[9px] ${mine ? "text-white/58" : "text-white/25"}`}
+                  >
+                    <time>
+                      {new Intl.DateTimeFormat("en", {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      }).format(message.createdAt)}
+                    </time>
+                    {mine && detail.canSeeReadReceipts ? (
+                      <span className="inline-flex items-center gap-0.5 font-semibold">
+                        {message.readAt ? (
+                          <CheckCheck className="h-3 w-3" />
+                        ) : (
+                          <Check className="h-3 w-3" />
+                        )}
+                        {message.readAt ? "Read" : "Sent"}
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div ref={bottomRef} />
+      </div>
+      <form onSubmit={send} className="flex gap-2 border-t border-white/8 p-3">
         <input
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(event) => setText(event.target.value)}
+          placeholder="Write something real…"
           maxLength={1000}
-          placeholder="Write a message…"
-          className="flex-1 rounded-full border border-input bg-background/60 px-5 py-3 text-sm outline-none focus:border-primary transition placeholder:text-muted-foreground/60"
+          className="field-input flex-1 rounded-full"
         />
         <button
           type="submit"
           disabled={busy || !text.trim()}
-          className="rounded-full bg-primary px-4 py-3 text-primary-foreground disabled:opacity-50 shadow-glow"
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-primary text-white transition hover:scale-105 disabled:opacity-40"
+          aria-label="Send message"
         >
           <Send className="h-4 w-4" />
         </button>

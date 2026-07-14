@@ -1,130 +1,172 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { MessageCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
+import { useQuery } from "convex/react";
+import { MessageCircle, Search, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "@/lib/api";
+import { isOnline } from "@/lib/presence";
+import type { Conversation } from "@/lib/types";
+import { Brand } from "@/components/Brand";
 
-export const Route = createFileRoute("/_authenticated/messages")({
-  component: MessagesLayout,
-});
-
-interface ConvRow {
-  id: string;
-  user_a: string;
-  user_b: string;
-  last_message: string | null;
-  last_message_at: string | null;
-  other?: { id: string; display_name: string | null; avatar_url: string | null };
-}
+export const Route = createFileRoute("/_authenticated/messages")({ component: MessagesLayout });
 
 function MessagesLayout() {
-  const { user } = useAuth();
+  const conversations = useQuery(api.conversations.list, {}) as Conversation[] | undefined;
   const { pathname } = useLocation();
-  const [convs, setConvs] = useState<ConvRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const detail = pathname.startsWith("/messages/");
+  const [query, setQuery] = useState("");
+  const [now, setNow] = useState(Date.now());
+  const filteredConversations = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!conversations || !term) return conversations;
+    return conversations.filter(
+      (conversation) =>
+        conversation.other?.displayName.toLowerCase().includes(term) ||
+        conversation.lastMessage?.toLowerCase().includes(term),
+    );
+  }, [conversations, query]);
 
   useEffect(() => {
-    if (!user) return;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    (async () => {
-      const { data } = await supabase
-        .from("conversations")
-        .select("*")
-        .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
-        .order("last_message_at", { ascending: false, nullsFirst: false });
-      const rows = (data ?? []) as ConvRow[];
-      const otherIds = Array.from(new Set(rows.map((c) => (c.user_a === user.id ? c.user_b : c.user_a))));
-      if (otherIds.length) {
-        const { data: profs } = await supabase
-          .from("profiles")
-          .select("id, display_name, avatar_url")
-          .in("id", otherIds);
-        const map = new Map((profs ?? []).map((p) => [p.id, p]));
-        for (const c of rows) {
-          const otherId = c.user_a === user.id ? c.user_b : c.user_a;
-          c.other = map.get(otherId) as ConvRow["other"];
-        }
-      }
-      setConvs(rows);
-      setLoading(false);
-
-      channel = supabase.channel(`conv-list-${user.id}`)
-        .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => {
-          // simple refresh on any change
-          supabase
-            .from("conversations")
-            .select("*")
-            .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
-            .order("last_message_at", { ascending: false, nullsFirst: false })
-            .then(({ data: refreshed }) => {
-              if (refreshed) {
-                setConvs((prev) => {
-                  const otherMap = new Map(prev.map((c) => [c.id, c.other]));
-                  return (refreshed as ConvRow[]).map((c) => ({ ...c, other: otherMap.get(c.id) }));
-                });
-              }
-            });
-        })
-        .subscribe();
-    })();
-    return () => {
-      if (channel) supabase.removeChannel(channel);
-    };
-  }, [user]);
-
-  const inDetail = pathname !== "/messages" && pathname.startsWith("/messages/");
+    const interval = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   return (
-    <div className="md:flex md:gap-4 md:max-w-5xl md:mx-auto">
-      <aside className={`md:w-80 md:shrink-0 ${inDetail ? "hidden md:block" : ""}`}>
-        <header className="px-5 pt-8 pb-4">
-          <p className="text-[10px] font-medium tracking-[0.22em] uppercase text-muted-foreground">Inbox</p>
-          <h1 className="mt-1 font-display text-5xl font-medium leading-none">Messages</h1>
-        </header>
-        <div className="px-3 pb-32">
-          {loading ? (
-            <p className="px-2 py-8 text-center text-sm text-muted-foreground">Loading…</p>
-          ) : convs.length === 0 ? (
-            <div className="text-center py-20 px-4">
-              <div className="mx-auto h-14 w-14 rounded-full border hairline grid place-items-center">
-                <MessageCircle className="h-5 w-5 text-primary" />
-              </div>
-              <p className="mt-5 font-display text-2xl leading-tight">No chats yet.</p>
-              <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">Like someone you're interested in to start a conversation.</p>
-            </div>
-          ) : (
-            <ul className="space-y-1">
-              {convs.map((c) => (
-                <li key={c.id}>
-                  <Link
-                    to="/messages/$id"
-                    params={{ id: c.id }}
-                    className="flex items-center gap-3 rounded-2xl px-3 py-3 hover:bg-card transition border hairline border-transparent hover:border-[oklch(1_0_0/0.08)]"
-                  >
-                    <Avatar url={c.other?.avatar_url} name={c.other?.display_name} />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-display text-lg leading-tight truncate">{c.other?.display_name ?? "User"}</div>
-                      <div className="text-sm text-muted-foreground truncate mt-0.5">{c.last_message ?? "Say hi 👋"}</div>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+    <main className="app-page page-width max-w-7xl">
+      <header className="flex items-center justify-between py-6 md:py-8">
+        <div className="lg:hidden">
+          <Brand to="/browse" />
         </div>
-      </aside>
-
-      <main className={`flex-1 ${inDetail ? "" : "hidden md:flex md:items-center md:justify-center md:text-muted-foreground"}`}>
-        {inDetail ? <Outlet /> : <p className="hidden md:block font-display italic text-xl">Pick a conversation.</p>}
-      </main>
-    </div>
+        <span className="text-xs font-semibold text-white/30">
+          {conversations?.length ?? 0} {conversations?.length === 1 ? "chat" : "chats"}
+        </span>
+      </header>
+      <div className="grid min-h-[calc(100vh-10rem)] gap-4 md:grid-cols-[340px_1fr]">
+        <aside className={detail ? "hidden md:block" : "block"}>
+          <p className="eyebrow">Your inbox</p>
+          <h1 className="mt-3 text-5xl font-semibold tracking-[-.065em]">Messages</h1>
+          <label className="relative mt-5 block">
+            <span className="sr-only">Search conversations</span>
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/25" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search conversations"
+              className="field-input h-11 min-h-11 rounded-full pl-11 pr-11"
+            />
+            {query ? (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-white/35 hover:bg-white/5 hover:text-white"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </label>
+          <div className="mt-7 space-y-1.5">
+            {!conversations ? (
+              Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="h-20 animate-pulse rounded-2xl bg-white/5" />
+              ))
+            ) : filteredConversations?.length ? (
+              filteredConversations.map((conversation) => (
+                <ConversationRow
+                  key={conversation._id}
+                  conversation={conversation}
+                  active={pathname.endsWith(conversation._id)}
+                  now={now}
+                />
+              ))
+            ) : query ? (
+              <div className="rounded-2xl border border-white/8 px-5 py-10 text-center">
+                <Search className="mx-auto h-5 w-5 text-white/25" />
+                <p className="mt-3 text-sm font-semibold">No conversations found</p>
+                <p className="mt-1 text-xs text-white/30">Try another name or message.</p>
+              </div>
+            ) : (
+              <div className="rounded-[1.8rem] border border-white/8 bg-white/[.025] p-7 text-center">
+                <MessageCircle className="mx-auto h-5 w-5 text-primary" />
+                <h2 className="mt-4 text-xl font-semibold">No conversations yet</h2>
+                <p className="mt-2 text-sm leading-relaxed text-white/35">
+                  A match or a thoughtful hello will start one.
+                </p>
+                <Link to="/browse" className="button-ghost mt-5">
+                  Discover people
+                </Link>
+              </div>
+            )}
+          </div>
+        </aside>
+        <section className={detail ? "block" : "hidden md:grid md:place-items-center"}>
+          {detail ? (
+            <Outlet />
+          ) : (
+            <div className="text-center text-white/25">
+              <MessageCircle className="mx-auto h-7 w-7" />
+              <p className="mt-3 text-sm">Choose a conversation</p>
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }
 
-function Avatar({ url, name }: { url?: string | null; name?: string | null }) {
+function ConversationRow({
+  conversation,
+  active,
+  now,
+}: {
+  conversation: Conversation;
+  active: boolean;
+  now: number;
+}) {
+  const other = conversation.other;
+  const online = isOnline(other?.lastActive, now);
+  const unread = conversation.unreadCount ?? 0;
   return (
-    <div className="h-12 w-12 rounded-full bg-secondary overflow-hidden flex items-center justify-center shrink-0 ring-1 ring-[oklch(1_0_0/0.08)]">
-      {url ? <img src={url} alt={name ?? ""} className="h-full w-full object-cover" /> : <span className="font-display font-medium text-lg text-primary">{name?.[0] ?? "?"}</span>}
-    </div>
+    <Link
+      to="/messages/$id"
+      params={{ id: conversation._id }}
+      className={`flex items-center gap-3 rounded-2xl border p-3 transition ${active ? "border-white/10 bg-white/[.06]" : "border-transparent hover:bg-white/[.035]"}`}
+    >
+      <div className="relative h-12 w-12 shrink-0">
+        <div className="h-12 w-12 overflow-hidden rounded-full bg-white/5">
+          {other?.photos[0] ? (
+            <img src={other.photos[0]} alt="" className="h-full w-full object-cover" />
+          ) : null}
+        </div>
+        {online ? (
+          <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-[3px] border-[#181816] bg-[#55d89a]" />
+        ) : null}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className={`truncate tracking-[-.02em] ${unread ? "font-black" : "font-semibold"}`}>
+            {other?.displayName ?? "Member"}
+          </h2>
+          <time className="text-[10px] text-white/25">
+            {conversation.lastMessageAt
+              ? new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(
+                  conversation.lastMessageAt,
+                )
+              : "New"}
+          </time>
+        </div>
+        <div className="mt-1 flex items-center gap-2">
+          <p
+            className={`min-w-0 flex-1 truncate text-xs ${unread ? "text-white/70" : "text-white/35"}`}
+          >
+            {conversation.lastMessage ?? "Start the conversation"}
+          </p>
+          {unread ? (
+            <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-[9px] font-black text-white">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </Link>
   );
 }

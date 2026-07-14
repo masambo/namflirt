@@ -1,104 +1,36 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  Outlet,
-  Link,
-  createRootRouteWithContext,
-  HeadContent,
-  Scripts,
-} from "@tanstack/react-router";
+import { HeadContent, Link, Outlet, createRootRoute } from "@tanstack/react-router";
+import { SeoFallbackCleanup } from "@/components/SeoFallbackCleanup";
 import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider } from "@/lib/auth";
-import appCss from "../styles.css?url";
+import { privateHead } from "@/lib/seo";
 
-function NotFoundComponent() {
+function NotFound() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-display">404</h1>
-        <p className="mt-3 text-muted-foreground">This page wandered off into the dunes.</p>
-        <Link
-          to="/"
-          className="mt-6 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-soft hover:opacity-90"
-        >
-          Go home
+    <main className="grid min-h-screen place-items-center px-6 text-center">
+      <div>
+        <p className="eyebrow">Lost connection</p>
+        <h1 className="mt-4 text-7xl font-semibold tracking-[-0.07em]">404</h1>
+        <p className="mt-3 text-muted-foreground">This page has left the conversation.</p>
+        <Link to="/" className="button-primary mt-8">
+          Back home
         </Link>
       </div>
-    </div>
+    </main>
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
-  return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-2xl font-display">Something went wrong</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
-        <button
-          onClick={reset}
-          className="mt-6 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-soft"
-        >
-          Try again
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "NamFlirt — Namibian Dating, Done Differently" },
-      { name: "description", content: "Meet Namibians by culture, language, and connection — no more swiping. Browse profiles with a real compatibility score." },
-      { property: "og:title", content: "NamFlirt — Namibian Dating, Done Differently" },
-      { property: "og:description", content: "Meet Namibians by culture, language, and connection — no more swiping. Browse profiles with a real compatibility score." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:title", content: "NamFlirt — Namibian Dating, Done Differently" },
-      { name: "twitter:description", content: "Meet Namibians by culture, language, and connection — no more swiping. Browse profiles with a real compatibility score." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/ZnNxNI8zgxMInX9VoYm6cxt3EZD2/social-images/social-1778661579120-ChatGPT_Image_May_13,_2026,_10_28_52_AM.webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/ZnNxNI8zgxMInX9VoYm6cxt3EZD2/social-images/social-1778661579120-ChatGPT_Image_May_13,_2026,_10_28_52_AM.webp" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-    links: [
-      { rel: "stylesheet", href: appCss },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap",
-      },
-    ],
-  }),
-  shellComponent: RootShell,
-  component: RootComponent,
-  notFoundComponent: NotFoundComponent,
-  errorComponent: ErrorComponent,
+export const Route = createRootRoute({
+  head: () =>
+    privateHead(
+      "namflirt. | Namibian dating with intention",
+      "A thoughtful dating experience built for people across Namibia.",
+    ),
+  component: () => (
+    <>
+      <HeadContent />
+      <SeoFallbackCleanup />
+      <Outlet />
+      <Toaster richColors position="top-center" />
+    </>
+  ),
+  notFoundComponent: NotFound,
 });
-
-function RootShell({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
-}
-
-function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Outlet />
-        <Toaster richColors position="top-center" />
-      </AuthProvider>
-    </QueryClientProvider>
-  );
-}

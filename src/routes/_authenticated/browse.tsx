@@ -1,186 +1,305 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { Heart, MapPin, SlidersHorizontal, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
-import { calcMatch, type ProfileLike, type PrefsLike } from "@/lib/match";
-import { calcAge, REGIONS, LANGUAGES } from "@/lib/constants";
-import { MatchBadge } from "@/components/MatchBadge";
+import { useMemo, useState } from "react";
+import { useQuery } from "convex/react";
+import { BadgeCheck, Heart, MapPin, SlidersHorizontal, Sparkles, X } from "lucide-react";
+import { api } from "@/lib/api";
+import { calcAge, LANGUAGES, REGIONS } from "@/lib/constants";
+import { calcMatch } from "@/lib/match";
+import type { Preferences, Profile } from "@/lib/types";
+import { Brand } from "@/components/Brand";
 
-export const Route = createFileRoute("/_authenticated/browse")({
-  component: Browse,
-});
+export const Route = createFileRoute("/_authenticated/browse")({ component: Browse });
 
-interface ProfileRow extends ProfileLike {
-  display_name: string | null;
-  bio: string | null;
-  avatar_url: string | null;
-  last_active: string;
-}
+const fallbackPreferences: Preferences = {
+  minAge: 20,
+  maxAge: 45,
+  preferredRegions: [],
+  preferredLanguages: [],
+  preferredTribes: [],
+  tribeImportance: "open_to_all",
+  preferredHobbies: [],
+  openToLongDistance: true,
+};
 
 function Browse() {
-  const { user } = useAuth();
-  const [me, setMe] = useState<ProfileRow | null>(null);
-  const [prefs, setPrefs] = useState<PrefsLike | null>(null);
-  const [profiles, setProfiles] = useState<ProfileRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
-  const [filterRegion, setFilterRegion] = useState<string>("");
-  const [filterLanguage, setFilterLanguage] = useState<string>("");
-  const [filterMinAge, setFilterMinAge] = useState<number | null>(null);
-  const [filterMaxAge, setFilterMaxAge] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const [{ data: meData }, { data: prefData }, { data: all }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", user.id).single(),
-        supabase.from("preferences").select("*").eq("user_id", user.id).single(),
-        supabase.from("profiles").select("*").neq("id", user.id).eq("profile_completed", true).limit(200),
-      ]);
-      setMe(meData as ProfileRow);
-      setPrefs(prefData as unknown as PrefsLike);
-      setProfiles((all ?? []) as ProfileRow[]);
-      setLoading(false);
-    })();
-  }, [user]);
+  const data = useQuery(api.profiles.list, {}) as
+    { viewer: Profile | null; preferences: Preferences | null; profiles: Profile[] } | undefined;
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [region, setRegion] = useState("");
+  const [language, setLanguage] = useState("");
 
   const ranked = useMemo(() => {
-    if (!me || !prefs) return [];
-    return profiles
-      .filter((p) => {
-        if (prefs.preferred_gender && p.gender && p.gender !== prefs.preferred_gender) return false;
-        if (filterRegion && p.region !== filterRegion) return false;
-        if (filterLanguage && !p.languages?.includes(filterLanguage)) return false;
-        const age = calcAge(p.date_of_birth);
-        if (filterMinAge != null && (age == null || age < filterMinAge)) return false;
-        if (filterMaxAge != null && (age == null || age > filterMaxAge)) return false;
-        return true;
-      })
-      .map((p) => ({ p, m: calcMatch(me, prefs, p) }))
-      .sort((a, b) => b.m.score - a.m.score);
-  }, [me, prefs, profiles, filterRegion, filterLanguage, filterMinAge, filterMaxAge]);
+    if (!data?.viewer) return [];
+    return data.profiles
+      .filter(
+        (profile) =>
+          (!region || profile.region === region) &&
+          (!language || profile.languages.includes(language)),
+      )
+      .map((profile) => ({
+        profile,
+        match: calcMatch(data.viewer!, data.preferences ?? fallbackPreferences, profile),
+      }))
+      .sort((a, b) => b.match.score - a.match.score);
+  }, [data, language, region]);
 
+  const spotlight = ranked[0];
   return (
-    <div className="mx-auto max-w-2xl">
-      <header className="px-5 pt-8 pb-5 flex items-end justify-between gap-4">
-        <div>
-          <p className="text-[10px] font-medium tracking-[0.22em] uppercase text-muted-foreground">
-            {loading ? "Finding matches…" : `${ranked.length} people · sorted by fit`}
-          </p>
-          <h1 className="mt-1 font-display text-5xl font-medium leading-none">
-            Discover
-          </h1>
+    <main className="app-page page-width max-w-7xl">
+      <header className="flex items-center justify-between py-6 md:py-8">
+        <div className="lg:hidden">
+          <Brand to="/browse" />
         </div>
-        <button
-          onClick={() => setShowFilters(true)}
-          className="rounded-full bg-card border hairline p-3 hover:bg-secondary transition shadow-soft"
-          aria-label="Filters"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <span className="hidden rounded-full border border-white/8 px-4 py-2 text-xs text-white/40 sm:inline-flex">
+            <span className="status-dot mr-2" /> Live in Namibia
+          </span>
+          <button
+            onClick={() => setFiltersOpen(true)}
+            className="icon-button"
+            aria-label="Open filters"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+          </button>
+        </div>
       </header>
 
-      <div className="px-4 grid grid-cols-2 gap-3 pb-32">
-        {loading
-          ? Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="aspect-[3/4] rounded-3xl bg-card animate-pulse border hairline" />
-            ))
-          : ranked.length === 0
-          ? (
-              <div className="col-span-2 text-center py-20 px-6">
-                <p className="font-display text-2xl">No matches yet.</p>
-                <p className="mt-2 text-sm text-muted-foreground">Try widening your filters to meet more people.</p>
-              </div>
-            )
-          : ranked.map(({ p, m }, idx) => (
-              <Link
-                key={p.id}
-                to="/profile/$id"
-                params={{ id: p.id }}
-                className={`group relative rounded-3xl overflow-hidden bg-card shadow-card border hairline ${
-                  idx % 5 === 0 ? "aspect-[3/4.4] col-span-2" : "aspect-[3/4]"
-                }`}
-              >
-                {p.avatar_url ? (
-                  <img src={p.avatar_url} alt={p.display_name ?? ""} className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                ) : (
-                  <div className="absolute inset-0 bg-ember flex items-center justify-center">
-                    <Heart className="h-10 w-10 text-primary/40" />
-                  </div>
-                )}
-                <div className="absolute top-2.5 right-2.5">
-                  <MatchBadge score={m.score} size="sm" />
-                </div>
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-3.5 pt-12 text-white">
-                  <div className="font-display text-lg leading-tight">
-                    {p.display_name ?? "Anonymous"}
-                    {calcAge(p.date_of_birth) ? <span className="text-white/70">, {calcAge(p.date_of_birth)}</span> : null}
-                  </div>
-                  <div className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/65 mt-0.5">
-                    <MapPin className="h-3 w-3" />
-                    {p.town ?? p.region ?? "Namibia"}
-                  </div>
-                </div>
-              </Link>
-            ))}
+      <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="eyebrow">Made for you</p>
+          <h1 className="mt-3 text-5xl font-semibold tracking-[-.065em] md:text-7xl">Discover</h1>
+        </div>
+        <p className="max-w-xs text-sm leading-relaxed text-white/40">
+          People ranked by what you share — never by who paid to be seen.
+        </p>
       </div>
 
-      {showFilters && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-end md:items-center justify-center p-4" onClick={() => setShowFilters(false)}>
-          <div className="w-full max-w-md rounded-[2rem] bg-card border hairline p-7 shadow-card" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-medium tracking-[0.22em] uppercase text-muted-foreground">Refine</p>
-                <h2 className="font-display text-3xl font-medium leading-none mt-1">Filters</h2>
-              </div>
-              <button onClick={() => setShowFilters(false)} className="rounded-full border hairline p-2 text-muted-foreground hover:text-foreground transition" aria-label="Close">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="mt-5 space-y-4">
-              <FilterSelect label="Region" value={filterRegion} onChange={setFilterRegion} options={REGIONS as unknown as string[]} />
-              <FilterSelect label="Language" value={filterLanguage} onChange={setFilterLanguage} options={LANGUAGES as unknown as string[]} />
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Min age</span>
-                  <input type="number" value={filterMinAge ?? ""} onChange={(e) => setFilterMinAge(e.target.value ? Number(e.target.value) : null)} className="mt-1.5 w-full rounded-2xl border border-input bg-background/50 px-3 py-2.5 text-sm focus:border-primary outline-none" />
-                </label>
-                <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Max age</span>
-                  <input type="number" value={filterMaxAge ?? ""} onChange={(e) => setFilterMaxAge(e.target.value ? Number(e.target.value) : null)} className="mt-1.5 w-full rounded-2xl border border-input bg-background/50 px-3 py-2.5 text-sm focus:border-primary outline-none" />
-                </label>
-              </div>
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <button
-                  onClick={() => { setFilterRegion(""); setFilterLanguage(""); setFilterMinAge(null); setFilterMaxAge(null); }}
-                  className="rounded-full border hairline py-3 text-sm font-medium hover:bg-secondary transition"
-                >
-                  Clear
-                </button>
-                <button
-                  onClick={() => setShowFilters(false)}
-                  className="rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-glow"
-                >
-                  Apply
-                </button>
-              </div>
-            </div>
-          </div>
+      {!data ? (
+        <BrowseSkeleton />
+      ) : ranked.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-[1.08fr_.92fr]">
+          {spotlight ? (
+            <SpotlightCard profile={spotlight.profile} score={spotlight.match.score} />
+          ) : null}
+          <section className="grid grid-cols-2 gap-3 content-start">
+            {ranked.slice(1, 5).map(({ profile, match }) => (
+              <MiniCard key={profile._id} profile={profile} score={match.score} />
+            ))}
+          </section>
         </div>
       )}
+
+      {ranked.length > 5 ? (
+        <section className="mt-16 pb-20">
+          <div className="mb-6 flex items-end justify-between">
+            <div>
+              <p className="eyebrow">Keep exploring</p>
+              <h2 className="mt-2 text-3xl font-semibold tracking-[-.05em]">
+                More people, more possibilities.
+              </h2>
+            </div>
+            <span className="text-xs text-white/30">{ranked.length - 5} profiles</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {ranked.slice(5).map(({ profile, match }) => (
+              <MiniCard key={profile._id} profile={profile} score={match.score} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {filtersOpen ? (
+        <FilterPanel
+          region={region}
+          language={language}
+          setRegion={setRegion}
+          setLanguage={setLanguage}
+          onClose={() => setFiltersOpen(false)}
+        />
+      ) : null}
+    </main>
+  );
+}
+
+function SpotlightCard({ profile, score }: { profile: Profile; score: number }) {
+  return (
+    <Link
+      to="/profile/$id"
+      params={{ id: profile._id }}
+      className="group relative min-h-[600px] overflow-hidden rounded-[2.4rem] border border-white/10 bg-[#1b1b18] sm:min-h-[690px]"
+    >
+      {profile.photos[0] ? (
+        <img
+          src={profile.photos[0]}
+          alt={profile.displayName}
+          className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.025]"
+        />
+      ) : null}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/25" />
+      <div className="absolute left-5 top-5 inline-flex items-center gap-2 rounded-full bg-black/35 px-3 py-2 text-xs font-semibold backdrop-blur-xl">
+        <Sparkles className="h-3.5 w-3.5 text-primary" /> Best fit today
+      </div>
+      <div className="absolute inset-x-0 bottom-0 p-5 sm:p-8">
+        <div className="mb-4 inline-flex rounded-full bg-primary px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-white shadow-[0_8px_24px_rgba(255,79,135,.3)]">
+          {score}% compatible
+        </div>
+        <div className="flex items-center gap-2">
+          <h2 className="text-4xl font-semibold tracking-[-.06em] sm:text-6xl">
+            {profile.displayName}, {calcAge(profile.dateOfBirth)}
+          </h2>
+          {profile.verified ? <BadgeCheck className="h-6 w-6 fill-primary text-black" /> : null}
+        </div>
+        <p className="mt-2 flex items-center gap-1.5 text-sm text-white/60">
+          <MapPin className="h-4 w-4" /> {profile.town ?? profile.region ?? "Namibia"}
+        </p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          {profile.languages.slice(0, 2).map((value) => (
+            <span key={value} className="profile-chip">
+              {value}
+            </span>
+          ))}
+          {profile.relationshipGoal ? (
+            <span className="profile-chip">{profile.relationshipGoal}</span>
+          ) : null}
+        </div>
+      </div>
+      <span className="absolute bottom-6 right-6 hidden h-14 w-14 place-items-center rounded-full bg-primary text-white shadow-[0_12px_35px_rgba(255,78,132,.4)] sm:grid">
+        <Heart className="h-5 w-5" />
+      </span>
+    </Link>
+  );
+}
+
+function MiniCard({ profile, score }: { profile: Profile; score: number }) {
+  return (
+    <Link
+      to="/profile/$id"
+      params={{ id: profile._id }}
+      className="group relative aspect-[.78] overflow-hidden rounded-[1.65rem] border border-white/10 bg-[#1b1b18]"
+    >
+      {profile.photos[0] ? (
+        <img
+          src={profile.photos[0]}
+          alt={profile.displayName}
+          loading="lazy"
+          className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
+        />
+      ) : null}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-transparent to-black/10" />
+      <span className="absolute right-3 top-3 rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-bold backdrop-blur-lg">
+        {score}%
+      </span>
+      <div className="absolute inset-x-0 bottom-0 p-4">
+        <h3 className="text-xl font-semibold leading-none tracking-[-.045em]">
+          {profile.displayName}, {calcAge(profile.dateOfBirth)}
+        </h3>
+        <p className="mt-1.5 text-[11px] text-white/55">{profile.town ?? profile.region}</p>
+      </div>
+    </Link>
+  );
+}
+
+function FilterPanel({
+  region,
+  language,
+  setRegion,
+  setLanguage,
+  onClose,
+}: {
+  region: string;
+  language: string;
+  setRegion: (value: string) => void;
+  setLanguage: (value: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center"
+      onMouseDown={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-[2rem] border border-white/10 bg-[#1b1b18] p-6 shadow-2xl"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="eyebrow">Refine your view</p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-[-.05em]">Filters</h2>
+          </div>
+          <button onClick={onClose} className="icon-button">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="mt-7 space-y-5">
+          <Select label="Region" value={region} options={REGIONS} onChange={setRegion} />
+          <Select label="Language" value={language} options={LANGUAGES} onChange={setLanguage} />
+        </div>
+        <div className="mt-7 grid grid-cols-2 gap-3">
+          <button
+            className="button-ghost justify-center"
+            onClick={() => {
+              setRegion("");
+              setLanguage("");
+            }}
+          >
+            Clear
+          </button>
+          <button className="button-primary justify-center" onClick={onClose}>
+            Show matches
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
-function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+function Select({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly string[];
+  onChange: (value: string) => void;
+}) {
   return (
     <label className="block">
-      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="mt-1.5 w-full rounded-2xl border border-input bg-background/50 px-3 py-2.5 text-sm focus:border-primary outline-none">
-        <option value="">Any</option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      <span className="field-label">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="field-input mt-2"
+      >
+        <option value="">Everywhere</option>
+        {options.map((option) => (
+          <option key={option}>{option}</option>
+        ))}
       </select>
     </label>
+  );
+}
+function BrowseSkeleton() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <div className="min-h-[650px] animate-pulse rounded-[2.4rem] bg-white/5" />
+      <div className="grid grid-cols-2 gap-3">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="aspect-[.78] animate-pulse rounded-[1.65rem] bg-white/5" />
+        ))}
+      </div>
+    </div>
+  );
+}
+function EmptyState() {
+  return (
+    <div className="rounded-[2rem] border border-white/8 bg-white/[.025] py-24 text-center">
+      <Heart className="mx-auto h-6 w-6 text-primary" />
+      <h2 className="mt-5 text-3xl font-semibold tracking-[-.05em]">No one here yet.</h2>
+      <p className="mt-2 text-sm text-white/40">Try clearing your filters.</p>
+    </div>
   );
 }

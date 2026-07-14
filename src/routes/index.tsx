@@ -1,201 +1,600 @@
-import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { Heart, ArrowUpRight, Languages, MapPin, Sparkles } from "lucide-react";
-import { useAuth } from "@/lib/auth";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, type ReactNode } from "react";
+import {
+  Apple,
+  ArrowRight,
+  Check,
+  Crown,
+  HeartHandshake,
+  MapPinned,
+  MessagesSquare,
+  Play,
+  ShieldCheck,
+  Star,
+  X,
+  Zap,
+} from "lucide-react";
+import { Brand, BrandName, BrandText } from "@/components/Brand";
+import { PLAN_DEFINITIONS, type PlanDefinition } from "@/lib/plans";
+import { homeStructuredData, seoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/")({
+  head: () =>
+    seoHead({
+      title: "Namibian Dating for Meaningful Connections | namflirt.",
+      description:
+        "Meet Namibian singles who want genuine connection. Discover thoughtful dating across Namibia's cultures, languages and places with namflirt.",
+      path: "/",
+      structuredData: homeStructuredData,
+    }),
   component: Landing,
 });
 
+const heroPortraits = [
+  {
+    src: "/images/hero/Herero_hero.png",
+    alt: "namflirt. member in Herero dress",
+    className: "hero-portrait-one",
+  },
+  {
+    src: "/images/hero/vambo_hero.png",
+    alt: "namflirt. member in Oshiwambo dress",
+    className: "hero-portrait-two",
+  },
+  {
+    src: "/images/hero/Kavango_hero.png",
+    alt: "namflirt. member in Kavango-inspired beadwork",
+    className: "hero-portrait-three",
+  },
+  {
+    src: "/images/hero/Nama_hero.png",
+    alt: "namflirt. member in Nama dress",
+    className: "hero-portrait-four",
+  },
+  {
+    src: "/images/hero/Bsaster_hero.png",
+    alt: "namflirt. member in traditional dress",
+    className: "hero-portrait-five",
+  },
+  {
+    src: "/images/hero/Geman_hero.png",
+    alt: "namflirt. member in German-inspired dress",
+    className: "hero-portrait-six",
+  },
+] as const;
+
+type FooterRoute = "/auth" | "/terms" | "/safety" | "/privacy" | "/community-guidelines";
+
+type FooterLink =
+  | { label: string; href: `#${string}`; to?: never }
+  | { label: string; to: FooterRoute; href?: never };
+
+type FooterGroup = {
+  title: string;
+  links: FooterLink[];
+};
+
+const footerLinks = [
+  {
+    title: "Explore",
+    links: [
+      { label: "Why namflirt.", href: "#different" },
+      { label: "How it works", href: "#how" },
+      { label: "Pricing", href: "#pricing" },
+      { label: "Join now", to: "/auth" },
+    ],
+  },
+  {
+    title: "Policies",
+    links: [
+      { label: "Terms", to: "/terms" },
+      { label: "Safety", to: "/safety" },
+      { label: "Privacy", to: "/privacy" },
+      { label: "Community guidelines", to: "/community-guidelines" },
+    ],
+  },
+] satisfies FooterGroup[];
+
 function Landing() {
-  const { user, loading } = useAuth();
-  if (!loading && user) return <Navigate to="/browse" />;
+  useEffect(() => {
+    const elements = document.querySelectorAll<HTMLElement>("[data-reveal]");
+    document.documentElement.classList.add("motion-ready");
+    const observer = new IntersectionObserver(
+      (entries) =>
+        entries.forEach(
+          (entry) => entry.isIntersecting && entry.target.classList.add("is-visible"),
+        ),
+      { rootMargin: "0px 0px -10%", threshold: 0.12 },
+    );
+    elements.forEach((element) => observer.observe(element));
+    const fallback = window.setTimeout(
+      () => elements.forEach((element) => element.classList.add("is-visible")),
+      1400,
+    );
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(fallback);
+      document.documentElement.classList.remove("motion-ready");
+    };
+  }, []);
 
   return (
-    <div className="min-h-screen overflow-x-hidden">
-      {/* Top bar */}
-      <nav className="relative z-20 mx-auto max-w-6xl px-6 pt-7 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-full bg-primary grid place-items-center shadow-glow">
-            <Heart className="h-4 w-4 fill-primary-foreground text-primary-foreground" />
+    <div className="landing-shell overflow-hidden">
+      <header className="landing-header sticky top-0 z-50 border-b border-white/8 bg-[#11110f]/88 backdrop-blur-2xl">
+        <nav className="page-width flex h-24 items-center justify-between gap-5">
+          <Brand />
+          <div className="hidden items-center gap-1.5 rounded-full border border-white/12 bg-white/[.055] p-1.5 text-[15px] font-bold text-white/78 shadow-[0_18px_50px_rgba(0,0,0,.32)] md:flex">
+            <a href="#different" className="nav-link rounded-full px-5 py-3">
+              Why <BrandName />
+            </a>
+            <a href="#how" className="nav-link rounded-full px-5 py-3">
+              How it works
+            </a>
+            <a href="#pricing" className="nav-link rounded-full px-5 py-3">
+              Pricing
+            </a>
+            <a href="#safety" className="nav-link rounded-full px-5 py-3">
+              Safety
+            </a>
           </div>
-          <span className="font-display text-xl tracking-tight">NamFlirt</span>
-        </div>
-        <Link
-          to="/auth"
-          className="rounded-full border hairline px-4 py-2 text-xs font-medium tracking-wide uppercase hover:bg-card transition"
-        >
-          Sign in
-        </Link>
-      </nav>
-
-      {/* Hero */}
-      <header className="relative">
-        <div className="relative mx-auto max-w-6xl px-6 pt-16 md:pt-24 pb-20">
-          <span className="inline-flex items-center gap-2 rounded-full border hairline bg-card/40 backdrop-blur px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-            Made in Namibia · For Namibians
-          </span>
-
-          <h1 className="mt-7 font-display text-[14vw] md:text-[7.5rem] leading-[0.9] font-medium text-balance">
-            Love that <span className="italic font-light text-primary">speaks</span>
-            <br />
-            your <span className="italic font-light">language.</span>
-          </h1>
-
-          <div className="mt-10 grid md:grid-cols-12 gap-8 items-end">
-            <p className="md:col-span-6 text-lg md:text-xl text-muted-foreground leading-relaxed max-w-xl">
-              NamFlirt matches Namibians by culture, language, region and what actually matters — no swiping. Browse real people, see your compatibility score, start something real.
-            </p>
-
-            <div className="md:col-span-6 flex flex-wrap gap-3 md:justify-end">
-              <Link
-                to="/auth"
-                className="group inline-flex items-center gap-2 rounded-full bg-primary pl-6 pr-2 py-2 text-sm font-semibold text-primary-foreground shadow-glow hover:opacity-95 transition"
-              >
-                Create your profile
-                <span className="h-9 w-9 rounded-full bg-primary-foreground/15 grid place-items-center group-hover:translate-x-0.5 transition">
-                  <ArrowUpRight className="h-4 w-4" />
-                </span>
-              </Link>
-              <Link
-                to="/auth"
-                className="inline-flex items-center rounded-full border hairline px-5 py-3 text-sm font-medium hover:bg-card transition"
-              >
-                I already have one
-              </Link>
-            </div>
+          <div className="flex items-center gap-2">
+            <Link to="/auth" className="button-primary px-5 sm:px-7">
+              Sign in <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
-
-          {/* Editorial profile preview */}
-          <div className="mt-16 md:mt-24 relative">
-            <div className="grid grid-cols-12 gap-4 md:gap-6">
-              <PreviewCard
-                className="col-span-7 md:col-span-5 aspect-[3/4] md:aspect-[3/4]"
-                src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=800&q=80"
-                name="Naita"
-                meta="Windhoek · Oshiwambo"
-                score={94}
-              />
-              <div className="col-span-5 md:col-span-3 flex flex-col gap-4 md:gap-6">
-                <PreviewCard
-                  className="aspect-square"
-                  src="https://images.unsplash.com/photo-1463453091185-61582044d556?w=600&q=80"
-                  name="Theo"
-                  meta="Swakopmund"
-                  score={88}
-                />
-                <div className="flex-1 rounded-3xl border hairline bg-card/60 backdrop-blur p-5 flex flex-col justify-between">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  <p className="font-display text-2xl leading-tight">
-                    Match by <span className="italic">language</span>, tribe & region.
-                  </p>
-                </div>
-              </div>
-              <PreviewCard
-                className="hidden md:block md:col-span-4 aspect-[4/5]"
-                src="https://images.unsplash.com/photo-1488161628813-04466f872be2?w=800&q=80"
-                name="Linea"
-                meta="Oshakati · Otjiherero"
-                score={91}
-              />
-            </div>
-          </div>
+        </nav>
+        <div className="page-width flex gap-2 overflow-x-auto pb-4 md:hidden">
+          <a href="#different" className="mobile-nav-link">
+            Why <BrandName />
+          </a>
+          <a href="#how" className="mobile-nav-link">
+            How it works
+          </a>
+          <a href="#pricing" className="mobile-nav-link">
+            Pricing
+          </a>
+          <a href="#safety" className="mobile-nav-link">
+            Safety
+          </a>
         </div>
       </header>
 
-      {/* Features */}
-      <section className="mx-auto max-w-6xl px-6 py-24 md:py-32">
-        <div className="flex items-end justify-between gap-8 flex-wrap">
-          <h2 className="font-display text-4xl md:text-6xl font-medium text-balance max-w-xl leading-[1.02]">
-            Built for the way <span className="italic font-light text-primary">we</span> meet.
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-xs">
-            Three things make NamFlirt different from every other dating app you've tried.
-          </p>
-        </div>
+      <main>
+        <section className="page-width hero-stage relative grid min-h-[calc(100vh-6rem)] items-center gap-14 py-16 lg:grid-cols-[1.02fr_.98fr] lg:py-10">
+          <div className="hero-glow hero-glow-one" aria-hidden="true" />
+          <div className="hero-glow hero-glow-two" aria-hidden="true" />
+          <div className="relative z-10 max-w-2xl">
+            <h1 className="hero-title max-w-[780px] text-[clamp(3.55rem,9.4vw,9rem)] font-semibold leading-[.78] tracking-[-.085em]">
+              Meet with
+              <br />
+              <span className="text-primary">intention.</span>
+            </h1>
+            <p className="hero-copy mt-8 max-w-xl text-lg leading-relaxed text-white/55 md:text-xl">
+              A more thoughtful way to meet people across Namibia's cultures, languages and places,
+              built around the kind of connection you actually want.
+            </p>
+            <div className="hero-actions mt-9 flex flex-wrap items-center gap-3">
+              <Link to="/auth" className="button-primary">
+                Create your profile <ArrowRight className="h-4 w-4" />
+              </Link>
+              <a href="#pricing" className="button-ghost">
+                See pricing
+              </a>
+            </div>
+            <div className="hero-meta mt-10 flex flex-wrap gap-x-7 gap-y-3 text-xs font-medium text-white/42">
+              <span className="inline-flex items-center gap-2">
+                <Check className="h-3.5 w-3.5 text-primary" /> No endless swiping
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Check className="h-3.5 w-3.5 text-primary" /> Compatibility, explained
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Check className="h-3.5 w-3.5 text-primary" /> Free to join
+              </span>
+            </div>
+          </div>
 
-        <div className="mt-16 grid gap-px md:grid-cols-3 bg-border/40 rounded-3xl overflow-hidden border hairline">
-          <Feature index="01" Icon={Languages} title="Language matters" body="Oshiwambo. Otjiherero. Khoekhoegowab. Rukwangali. Afrikaans. English. Find people who speak yours — first." />
-          <Feature index="02" Icon={MapPin} title="Region by region" body="From Khomas to Zambezi to Kavango. Filter by region, town, or open it up to the whole country." />
-          <Feature index="03" Icon={Sparkles} title="Real compatibility" body="Every profile shows a score based on language, tribe, age, region, hobbies and goals. No guesswork." />
-        </div>
-      </section>
+          <div className="hero-deck hero-portrait-collage relative mx-auto h-[490px] w-full max-w-[650px] sm:h-[670px] lg:h-[720px]">
+            <div className="hero-deck-glow" aria-hidden="true" />
+            <div className="hero-pink-ambient" aria-hidden="true" />
+            <svg
+              className="hero-art hero-art-orbit"
+              viewBox="0 0 260 190"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path d="M18 142C48 36 176 8 238 68C276 105 215 166 138 170C76 174 37 151 53 105C69 59 153 43 197 76" />
+              <path d="M31 151C86 184 194 180 231 123" />
+              <circle cx="31" cy="151" r="5" />
+            </svg>
+            <svg
+              className="hero-art hero-art-heart"
+              viewBox="0 0 120 120"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path d="M60 99C49 86 18 67 18 39C18 19 44 13 60 34C76 13 102 19 102 39C102 67 71 86 60 99Z" />
+              <path d="M91 15L95 5M101 21L111 16M96 29L106 35" />
+            </svg>
+            <svg
+              className="hero-art hero-art-spark"
+              viewBox="0 0 80 80"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path d="M40 8C42 29 51 38 72 40C51 42 42 51 40 72C38 51 29 42 8 40C29 38 38 29 40 8Z" />
+            </svg>
+            <div className="hero-portrait-grid">
+              {heroPortraits.map((portrait) => (
+                <div key={portrait.src} className="hero-photo-compartment">
+                  <figure className={`hero-portrait-card ${portrait.className}`} tabIndex={0}>
+                    <img src={portrait.src} alt={portrait.alt} />
+                  </figure>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
-      {/* CTA */}
-      <section className="mx-auto max-w-6xl px-6 pb-24 md:pb-32">
-        <div className="relative rounded-[2.5rem] bg-ember border hairline px-8 md:px-16 py-20 md:py-28 text-center overflow-hidden">
-          <div className="absolute -top-32 left-1/2 -translate-x-1/2 h-72 w-72 rounded-full bg-primary/30 blur-3xl" />
-          <p className="relative text-xs font-medium tracking-[0.2em] uppercase text-primary">No swipes · No games</p>
-          <h2 className="relative mt-5 font-display text-5xl md:text-7xl font-medium text-balance leading-[0.95]">
-            Your person is <span className="italic font-light">out there.</span>
-          </h2>
-          <p className="relative mt-5 text-muted-foreground max-w-md mx-auto">
-            Join today and meet Namibians who share your language, your region, your story.
-          </p>
-          <Link
-            to="/auth"
-            className="relative mt-9 inline-flex items-center gap-2 rounded-full bg-primary pl-7 pr-2 py-2 text-sm font-semibold text-primary-foreground shadow-glow hover:opacity-95 transition"
-          >
-            Start free
-            <span className="h-9 w-9 rounded-full bg-primary-foreground/15 grid place-items-center">
-              <ArrowUpRight className="h-4 w-4" />
-            </span>
-          </Link>
-        </div>
-      </section>
+        <section id="different" data-reveal className="reveal-section page-width py-20 md:py-32">
+          <div className="grid items-center gap-12 lg:grid-cols-[.8fr_1.2fr]">
+            <div className="grid min-h-[34rem] grid-cols-[auto_minmax(0,1fr)] items-end gap-8 overflow-visible sm:gap-12">
+              <h2 className="self-center text-4xl font-semibold text-white sm:text-5xl md:text-6xl [writing-mode:vertical-rl] rotate-180">
+                Why <BrandName />
+              </h2>
+              <img
+                src="/images/couples.png"
+                alt="A happy Namibian couple embracing"
+                className="h-auto max-h-[42rem] w-auto max-w-full justify-self-center object-contain opacity-100"
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Feature
+                icon={<HeartHandshake />}
+                number="01"
+                title="Meet across cultures"
+                body="Discover people from different Namibian backgrounds with context for language, values, region and relationship goals."
+              />
+              <Feature
+                icon={<MapPinned />}
+                number="02"
+                title="Rooted in Namibia"
+                body="Browse by towns, regions, languages and the cultural details generic dating apps tend to flatten."
+              />
+              <Feature
+                icon={<MessagesSquare />}
+                number="03"
+                title="Conversation first"
+                body="Profiles give you something real to respond to, so opening lines feel human instead of forced."
+              />
+              <Feature
+                icon={<ShieldCheck />}
+                number="04"
+                title="Respect by design"
+                body="Thoughtful profiles, reporting controls and match-aware messaging help protect a diverse community."
+              />
+            </div>
+          </div>
+        </section>
 
-      <footer className="border-t hairline">
-        <div className="mx-auto max-w-6xl px-6 py-8 flex items-center justify-between text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} NamFlirt Namibia</span>
-          <span className="font-display italic">Be kind. Be real.</span>
+        <section id="how" className="page-width py-20 md:py-32">
+          <div className="rounded-[2.5rem] border border-white/10 bg-[#1a1a17] px-6 py-14 md:px-14 md:py-20">
+            <div className="grid items-end gap-10 lg:grid-cols-2">
+              <div>
+                <p className="eyebrow">Three simple steps</p>
+                <h2 className="mt-5 text-5xl font-semibold tracking-[-.065em] md:text-7xl">
+                  A profile that feels like you.
+                </h2>
+              </div>
+              <p className="max-w-md text-lg leading-relaxed text-white/50 lg:justify-self-end">
+                Tell us what matters, meet people from the cultures and places that shape Namibia,
+                then start a conversation when the feeling is mutual.
+              </p>
+            </div>
+            <div className="mt-14 grid gap-px overflow-hidden rounded-3xl bg-white/10 md:grid-cols-3">
+              <Step
+                number="01"
+                title="Tell your story"
+                body="Add your photos, languages, region, cultural background, interests and what you are looking for."
+                image="/images/steps/tell-your-story.jpg"
+                alt="Hands choosing personal photos for a dating profile"
+              />
+              <Step
+                number="02"
+                title="Explore your fit"
+                body="Browse thoughtfully ranked people and understand what you share, and what you can learn from each other."
+                image="/images/steps/explore-your-fit.jpg"
+                alt="A woman thoughtfully exploring compatible profiles"
+              />
+              <Step
+                number="03"
+                title="Make it real"
+                body="Like, match and move into a calm, real-time conversation."
+                image="/images/steps/make-it-real.jpg"
+                alt="Two people enjoying a relaxed first conversation"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section id="pricing" data-reveal className="reveal-section page-width py-20 md:py-32">
+          <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="eyebrow">Plans</p>
+              <h2 className="mt-5 max-w-3xl text-5xl font-semibold leading-[.95] tracking-[-.065em] md:text-7xl">
+                Start free. Upgrade when you want more reach.
+              </h2>
+            </div>
+            <Link to="/plans" className="button-ghost self-start md:self-auto">
+              Compare all plans <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-3">
+            {PLAN_DEFINITIONS.map((plan, index) => (
+              <PricingCard key={plan.id} plan={plan} index={index} />
+            ))}
+          </div>
+        </section>
+
+        <section
+          id="safety"
+          className="cta-image-section page-width relative isolate flex min-h-[640px] items-center justify-center overflow-hidden rounded-[2.5rem] px-6 py-28 text-center md:min-h-[760px] md:rounded-[3.5rem] md:py-40"
+        >
+          <img
+            src="/images/someone-worth-meeting.png"
+            alt=""
+            aria-hidden="true"
+            className="cta-background absolute inset-0 -z-20 h-full w-full object-cover"
+          />
+          <div className="cta-image-content">
+            <p className="eyebrow justify-center text-white/65">Ready when you are</p>
+            <h2 className="mx-auto mt-6 max-w-5xl text-[clamp(3.8rem,9vw,8rem)] font-semibold leading-[.82] tracking-[-.085em] text-white drop-shadow-[0_12px_50px_rgba(0,0,0,.55)]">
+              Someone worth
+              <br />
+              <span className="text-primary">meeting.</span>
+            </h2>
+            <p className="mx-auto mt-8 max-w-md text-lg text-white/72 drop-shadow-lg">
+              Create your profile in a few minutes. Be honest, be curious, be kind.
+            </p>
+            <Link to="/auth" className="button-primary mt-9">
+              Join <BrandName /> <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      <footer className="mt-24 border-t border-white/8 bg-[#0d0d0c]">
+        <div className="page-width grid gap-12 py-14 lg:grid-cols-[1.15fr_.85fr_.85fr]">
+          <div className="max-w-md">
+            <Brand />
+            <p className="mt-6 text-sm leading-relaxed text-white/48">
+              <BrandName /> is built for people in Namibia who want to meet with intention,
+              understand each other's backgrounds and start conversations with respect.
+            </p>
+            <StoreBadges />
+          </div>
+
+          {footerLinks.map((group) => (
+            <div key={group.title}>
+              <h3 className="text-sm font-black uppercase tracking-[.16em] text-white/35">
+                {group.title}
+              </h3>
+              <nav className="mt-5 grid gap-3">
+                {group.links.map((link) =>
+                  link.to ? (
+                    <Link
+                      key={link.label}
+                      to={link.to}
+                      className="text-sm font-bold text-white/58 transition hover:text-white"
+                    >
+                      <BrandText>{link.label}</BrandText>
+                    </Link>
+                  ) : (
+                    <a
+                      key={link.label}
+                      href={link.href}
+                      className="text-sm font-bold text-white/58 transition hover:text-white"
+                    >
+                      <BrandText>{link.label}</BrandText>
+                    </a>
+                  ),
+                )}
+              </nav>
+            </div>
+          ))}
+
+          <div className="border-t border-white/8 pt-8 text-xs text-white/35 lg:col-span-3">
+            <p>
+              (c) {new Date().getFullYear()} <BrandName /> Dating across Namibia's cultures.
+            </p>
+          </div>
         </div>
       </footer>
     </div>
   );
 }
 
-function PreviewCard({
-  className = "",
-  src,
-  name,
-  meta,
-  score,
-}: {
-  className?: string;
-  src: string;
-  name: string;
-  meta: string;
-  score: number;
-}) {
+function StoreBadges() {
   return (
-    <div className={`relative rounded-3xl overflow-hidden border hairline shadow-card group ${className}`}>
-      <img src={src} alt={name} className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-      <div className="absolute top-3 right-3">
-        <span className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-2.5 py-1 text-[11px] font-semibold shadow-soft">
-          <Heart className="h-3 w-3 fill-current" />
-          {score}%
+    <div className="mt-7 flex flex-wrap gap-3" aria-label="namflirt. mobile apps coming soon">
+      <span className="inline-flex h-14 min-w-40 items-center gap-3 rounded-2xl border border-white/10 bg-white/[.045] px-4 text-left text-white/75">
+        <Apple className="h-6 w-6 shrink-0 text-white" />
+        <span>
+          <span className="block text-[10px] font-black uppercase tracking-[.14em] text-primary">
+            Coming soon
+          </span>
+          <span className="block text-sm font-black">App Store</span>
         </span>
-      </div>
-      <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-        <div className="font-display text-lg leading-tight">{name}</div>
-        <div className="text-[11px] uppercase tracking-wider text-white/70">{meta}</div>
-      </div>
+      </span>
+      <span className="inline-flex h-14 min-w-40 items-center gap-3 rounded-2xl border border-white/10 bg-white/[.045] px-4 text-left text-white/75">
+        <Play className="h-6 w-6 shrink-0 fill-primary/25 text-white" />
+        <span>
+          <span className="block text-[10px] font-black uppercase tracking-[.14em] text-primary">
+            Coming soon
+          </span>
+          <span className="block text-sm font-black">Play Store</span>
+        </span>
+      </span>
     </div>
   );
 }
 
-function Feature({ index, Icon, title, body }: { index: string; Icon: typeof Languages; title: string; body: string }) {
+function Feature({
+  icon,
+  number,
+  title,
+  body,
+}: {
+  icon: ReactNode;
+  number: string;
+  title: string;
+  body: string;
+}) {
   return (
-    <div className="bg-card p-8 md:p-10 group hover:bg-card/60 transition">
+    <article className="feature-card group min-h-64 bg-card p-7">
       <div className="flex items-start justify-between">
-        <span className="text-[11px] font-mono tracking-widest text-muted-foreground">{index}</span>
-        <div className="h-10 w-10 rounded-full bg-background grid place-items-center border hairline text-primary group-hover:bg-primary group-hover:text-primary-foreground transition">
-          <Icon className="h-4 w-4" />
-        </div>
+        <span className="feature-icon" aria-hidden="true">
+          {icon}
+        </span>
+        <span className="feature-number">{number}</span>
       </div>
-      <h3 className="mt-10 font-display text-2xl md:text-3xl font-medium leading-tight">{title}</h3>
-      <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{body}</p>
-    </div>
+      <h3 className="mt-12 text-2xl font-semibold tracking-[-.045em]">{title}</h3>
+      <p className="mt-3 text-sm leading-relaxed text-white/45">{body}</p>
+    </article>
   );
+}
+
+function Step({
+  number,
+  title,
+  body,
+  image,
+  alt,
+}: {
+  number: string;
+  title: string;
+  body: string;
+  image: string;
+  alt: string;
+}) {
+  return (
+    <article className="step-card group bg-[#151513] p-3 md:p-4">
+      <div className="relative aspect-[3/2] overflow-hidden rounded-[1.35rem]">
+        <img
+          src={image}
+          alt={alt}
+          loading="lazy"
+          className="step-card-image h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/10" />
+        <span className="absolute left-3 top-3 grid h-8 min-w-8 place-items-center rounded-full border border-white/12 bg-black/45 px-2 text-[10px] font-black text-primary backdrop-blur-xl">
+          {number}
+        </span>
+      </div>
+      <div className="px-3 pb-4 pt-6 md:px-4 md:pb-5">
+        <h3 className="text-2xl font-semibold tracking-[-.04em]">{title}</h3>
+        <p className="mt-3 text-sm leading-relaxed text-white/45">{body}</p>
+      </div>
+    </article>
+  );
+}
+
+function PricingCard({ plan, index }: { plan: PlanDefinition; index: number }) {
+  const featured = plan.id !== "free";
+  const isVip = plan.id === "vip";
+  return (
+    <article
+      style={{ transitionDelay: `${index * 80}ms` }}
+      className={`pricing-card relative flex min-h-[520px] flex-col overflow-hidden rounded-[1.7rem] border bg-card p-6 shadow-[0_24px_80px_rgba(0,0,0,.26)] ${isVip ? "border-primary" : featured ? "border-primary/55" : "border-white/10"}`}
+    >
+      {plan.badge ? (
+        <div
+          className={`absolute inset-x-0 top-0 h-8 bg-primary text-center text-[10px] font-black uppercase leading-8 text-white ${isVip ? "shadow-[0_8px_30px_rgba(255,79,135,.32)]" : "opacity-85"}`}
+        >
+          {plan.badge}
+        </div>
+      ) : null}
+      <div className={`flex h-full flex-col ${plan.badge ? "pt-8" : ""}`}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-2">
+            {plan.id === "vip" ? (
+              <Crown className="h-5 w-5 text-primary" />
+            ) : plan.id === "premium" ? (
+              <Star className="h-5 w-5 text-primary" />
+            ) : (
+              <Zap className="h-5 w-5 text-white/45" />
+            )}
+            <h3
+              className={`text-2xl font-black tracking-[-.045em] ${featured ? "text-primary" : "text-white"}`}
+            >
+              {plan.name}
+            </h3>
+          </div>
+          <p className="text-3xl font-black tracking-[-.065em] text-white">
+            {plan.price}
+            <span className="text-sm font-medium tracking-normal text-white/45">
+              {plan.cadence}
+            </span>
+          </p>
+        </div>
+        <ul className="mt-7 space-y-3 text-sm font-bold text-white/88">
+          {featuresForPlan(plan).map((feature) => (
+            <li key={feature} className="flex gap-2">
+              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+              <span>{feature}</span>
+            </li>
+          ))}
+          {unavailableForPlan(plan).map((feature) => (
+            <li key={feature} className="flex gap-2 text-white/22">
+              <X className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
+        <Link
+          to="/plans"
+          className={`mt-auto flex h-14 items-center justify-center gap-2 rounded-xl text-sm font-black transition hover:brightness-110 ${featured ? "bg-primary text-white shadow-[0_12px_32px_rgba(255,79,135,.2)]" : "bg-white/[.07] text-white/65"}`}
+        >
+          {isVip ? "Upgrade to VIP" : featured ? "Upgrade to Premium" : "Current plan"}{" "}
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+function featuresForPlan(plan: PlanDefinition) {
+  if (plan.id === "premium")
+    return [
+      "100 messages per month",
+      "See who liked you",
+      "View up to 100 profiles",
+      "Unlimited likes",
+      "Advanced filters",
+      "Read receipts",
+    ];
+  if (plan.id === "vip")
+    return [
+      "Everything in Premium",
+      "Unlimited messages",
+      "Unlimited profile views",
+      "Message anyone without matching",
+      "VIP badge on profile",
+      "Priority in search results",
+      "Priority support",
+      "Early access to new features",
+    ];
+  return [
+    "10 messages per month",
+    "View up to 10 profiles",
+    "10 likes per day",
+    "Basic match suggestions",
+  ];
+}
+
+function unavailableForPlan(plan: PlanDefinition) {
+  if (plan.id === "free")
+    return ["See who liked you", "Unlimited messages", "Boost profile", "Read receipts"];
+  if (plan.id === "premium") return ["Profile boost", "Priority support", "VIP badge"];
+  return [];
 }
