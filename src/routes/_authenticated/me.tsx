@@ -39,7 +39,7 @@ function Me() {
         <div className="lg:hidden">
           <Brand to="/browse" />
         </div>
-        <Link to="/onboarding" className="button-ghost">
+        <Link to="/edit-profile" className="button-ghost">
           <Edit3 className="h-4 w-4" /> Edit profile
         </Link>
       </header>
@@ -94,8 +94,7 @@ function Me() {
                       Congratulations, your 14-day Premium trial is active.
                     </p>
                     <p className="mt-1 text-xs leading-relaxed text-white/50">
-                      Plan changes and VIP access are paused while the payment gateway is being
-                      completed.
+                      Enjoy all Premium benefits during your trial.
                     </p>
                   </div>
                 </div>
@@ -125,7 +124,7 @@ function Me() {
                 <span>Admin dashboard</span>
               </Link>
             ) : null}
-            <Link to="/onboarding" className="settings-row">
+            <Link to="/edit-profile" className="settings-row">
               <Settings className="h-4 w-4" />
               <span>Edit preferences</span>
             </Link>

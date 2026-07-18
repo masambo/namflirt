@@ -379,7 +379,7 @@ export const save = mutation({
       education: args.education,
       occupation: args.occupation,
       photos: existing?.photos ?? [],
-      verified: false,
+      verified: existing?.verified ?? false,
       completed: true,
       isDemo: false,
       lastActive: Date.now(),
@@ -445,7 +445,7 @@ export const generateUploadUrl = mutation({
 export const choosePlan = mutation({
   args: { plan: v.union(v.literal("free"), v.literal("premium"), v.literal("vip")) },
   handler: async () => {
-    throw new Error("Plan changes are paused while payment setup is completed.");
+    throw new Error("New members receive Premium for 14 days.");
   },
 });
 

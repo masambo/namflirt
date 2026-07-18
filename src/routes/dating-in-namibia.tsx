@@ -26,7 +26,7 @@ function DatingInNamibia() {
           items: [
             "Meet singles in Windhoek, Swakopmund, Walvis Bay, Ongwediva, Rundu, Katima Mulilo, and towns across Namibia.",
             "Browse profiles shaped around culture, language, lifestyle, faith, interests, and relationship goals.",
-            "Start with a 14-day Premium trial while paid access is being prepared.",
+            "Start with Premium access for 14 days.",
           ],
         },
         {

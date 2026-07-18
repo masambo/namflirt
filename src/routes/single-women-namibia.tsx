@@ -35,7 +35,7 @@ function SingleWomenNamibia() {
         },
         {
           title: "Start with intention",
-          body: "Single women and single men can join, complete a profile, and use the 14-day Premium trial while payment options are being prepared.",
+          body: "Single women and single men can join, complete a profile, and use Premium for 14 days.",
         },
       ]}
     />

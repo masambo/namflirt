@@ -42,7 +42,7 @@ function Terms() {
           title: "Plans and access",
           body: "Free and paid plans may include different message, like, profile view, and discovery limits. Paid access can change over time as features are improved.",
           items: [
-            "Plan features are shown before any paid access is enabled and inside the app.",
+            "Plan features and limits are shown inside the app.",
             "We may limit, suspend, or remove accounts that misuse the service.",
             "Some features may require identity, payment, or safety checks before access is granted.",
           ],

@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type React from "react";
 import { useMutation, useQuery } from "convex/react";
 import {
   ArrowLeft,
   BadgeCheck,
+  ChevronLeft,
+  ChevronRight,
   Flag,
   Heart,
   Languages,
@@ -176,14 +178,7 @@ function ProfileView() {
         </Link>
         <div className="mt-4 grid gap-5 lg:grid-cols-[1.05fr_.95fr]">
           <section className="relative min-h-[650px] overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#1b1b18] lg:sticky lg:top-5 lg:h-[calc(100vh-3rem)] lg:min-h-[700px]">
-            {target.photos[0] ? (
-              <img
-                src={target.photos[0]}
-                alt={target.displayName}
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-            ) : null}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/20" />
+            <ProfilePhotoGallery photos={target.photos} name={target.displayName} />
             <span className="absolute right-5 top-5 rounded-full bg-primary px-3 py-2 text-xs font-black text-white shadow-[0_8px_24px_rgba(255,79,135,.3)]">
               {match.score}% fit
             </span>
@@ -254,21 +249,6 @@ function ProfileView() {
                 ) : null}
               </div>
             </ProfileSection>
-            {target.photos.length > 1 ? (
-              <ProfileSection label="A little more">
-                <div className="grid grid-cols-2 gap-3">
-                  {target.photos.slice(1).map((photo, index) => (
-                    <img
-                      key={photo}
-                      src={photo}
-                      alt={`${target.displayName} photo ${index + 2}`}
-                      loading="lazy"
-                      className="aspect-[.8] w-full rounded-2xl object-cover"
-                    />
-                  ))}
-                </div>
-              </ProfileSection>
-            ) : null}
             <ProfileSection label="The details">
               <div className="grid grid-cols-2 gap-2">
                 <Detail label="Looking for" value={target.relationshipGoal} />
@@ -374,12 +354,88 @@ function ProfileView() {
   );
 }
 
+function ProfilePhotoGallery({ photos, name }: { photos: string[]; name: string }) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(0);
+  const visiblePhotos = photos.length ? photos : [""];
+
+  function goTo(index: number) {
+    const next = Math.max(0, Math.min(visiblePhotos.length - 1, index));
+    scroller.current?.scrollTo({ left: scroller.current.clientWidth * next, behavior: "smooth" });
+    setActive(next);
+  }
+
+  return (
+    <div className="absolute inset-0">
+      <div
+        ref={scroller}
+        onScroll={(event) => {
+          const width = event.currentTarget.clientWidth;
+          if (width) setActive(Math.round(event.currentTarget.scrollLeft / width));
+        }}
+        className="flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        aria-label={`${name}'s photos`}
+      >
+        {visiblePhotos.map((photo, index) => (
+          <div key={photo || "empty"} className="relative h-full min-w-full snap-center">
+            {photo ? (
+              <img
+                src={photo}
+                alt={`${name}, photo ${index + 1}`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="grid h-full place-items-center text-sm text-white/30">
+                No photos yet
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/20" />
+          </div>
+        ))}
+      </div>
+      {visiblePhotos.length > 1 ? (
+        <>
+          <button
+            type="button"
+            onClick={() => goTo(active - 1)}
+            disabled={active === 0}
+            aria-label="Previous photo"
+            className="absolute left-4 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-black/45 backdrop-blur-md transition hover:bg-black/70 disabled:opacity-25"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => goTo(active + 1)}
+            disabled={active === visiblePhotos.length - 1}
+            aria-label="Next photo"
+            className="absolute right-4 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-black/45 backdrop-blur-md transition hover:bg-black/70 disabled:opacity-25"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+          <div className="absolute left-1/2 top-5 flex -translate-x-1/2 gap-1.5 rounded-full bg-black/35 px-3 py-2 backdrop-blur-md">
+            {visiblePhotos.map((photo, index) => (
+              <button
+                key={photo}
+                type="button"
+                onClick={() => goTo(index)}
+                aria-label={`Show photo ${index + 1}`}
+                className={`h-1.5 rounded-full transition-all ${index === active ? "w-6 bg-white" : "w-1.5 bg-white/45"}`}
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function ProfileLoadFeedback({ issue }: { issue: ProfileLoadIssue }) {
   const content = {
     plan_limit: {
       eyebrow: "Plan limit",
       title: "You've used this month's profile views.",
-      copy: "Premium trial access is available while payment setup is being completed.",
+      copy: "New members receive Premium access for 14 days.",
       action: "See plans",
       to: "/plans" as const,
     },

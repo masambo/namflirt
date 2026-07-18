@@ -93,7 +93,7 @@ export const toggle = mutation({
     const limit = planLimits[plan].likesPerDay;
     if (limit !== null && used >= limit)
       throw new Error(
-        `Free includes ${limit} likes per day. Premium trials are available while payments are being set up.`,
+        `Free includes ${limit} likes per day. New members receive Premium for 14 days.`,
       );
     await ctx.db.insert("likes", { fromProfileId: profile._id, toProfileId: profileId });
     await ctx.db.patch(profile._id, {

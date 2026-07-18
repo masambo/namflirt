@@ -65,7 +65,7 @@ function Plans() {
               Premium trial active
             </h1>
             <p className="mt-1 text-sm text-white/40">
-              Congratulations, you have been given a 14-day Premium trial while payments are being set up.
+              Congratulations, you have Premium access for 14 days.
             </p>
           </div>
         </header>
@@ -80,8 +80,7 @@ function Plans() {
                 Congratulations
               </p>
               <p className="mt-1 text-sm leading-relaxed text-white/70">
-                Every new signup gets Premium for 14 days. Plan changes and VIP access are paused
-                until the payment gateway is ready.
+                Every new signup gets Premium for 14 days.
               </p>
             </div>
             {viewer?.premiumTrialEndsAt ? (
