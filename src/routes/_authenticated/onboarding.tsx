@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { ArrowLeft, ArrowRight, Camera, Check, MapPin, Plus, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
@@ -28,40 +28,45 @@ function Onboarding() {
   const [form, setForm] = useState<FormState>(empty);
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
+  const hydrated = useRef(false);
+  const edited = useRef(false);
   const previews = useMemo(() => files.map((file) => URL.createObjectURL(file)), [files]);
 
   useEffect(() => () => previews.forEach((url) => URL.revokeObjectURL(url)), [previews]);
 
   useEffect(() => {
-    if (!viewer) return;
-    setForm({ displayName: viewer.displayName, dateOfBirth: viewer.dateOfBirth ?? "", gender: viewer.gender ?? "", bio: viewer.bio ?? "", region: viewer.region ?? "Khomas", town: viewer.town ?? "", tribe: viewer.tribe ?? "", languages: viewer.languages, hobbies: viewer.hobbies, lifestyle: viewer.lifestyle, relationshipGoal: viewer.relationshipGoal ?? "serious", religion: viewer.religion ?? "", education: viewer.education ?? "", occupation: viewer.occupation ?? "", preferredGender: viewer.preferences?.preferredGender ?? "", minAge: viewer.preferences?.minAge ?? 22, maxAge: viewer.preferences?.maxAge ?? 40, preferredRegions: viewer.preferences?.preferredRegions ?? [], preferredLanguages: viewer.preferences?.preferredLanguages ?? [], preferredTribes: viewer.preferences?.preferredTribes ?? [], tribeImportance: viewer.preferences?.tribeImportance ?? "open_to_all", preferredRelationshipGoal: viewer.preferences?.preferredRelationshipGoal ?? "serious", preferredHobbies: viewer.preferences?.preferredHobbies ?? [], openToLongDistance: viewer.preferences?.openToLongDistance ?? true });
+    if (!viewer || hydrated.current) return;
+    if (!edited.current) {
+      setForm({ displayName: viewer.displayName, dateOfBirth: viewer.dateOfBirth ?? "", gender: viewer.gender ?? "", bio: viewer.bio ?? "", region: viewer.region ?? "Khomas", town: viewer.town ?? "", tribe: viewer.tribe ?? "", languages: viewer.languages, hobbies: viewer.hobbies, lifestyle: viewer.lifestyle, relationshipGoal: viewer.relationshipGoal ?? "serious", religion: viewer.religion ?? "", education: viewer.education ?? "", occupation: viewer.occupation ?? "", preferredGender: viewer.preferences?.preferredGender ?? "", minAge: viewer.preferences?.minAge ?? 22, maxAge: viewer.preferences?.maxAge ?? 40, preferredRegions: viewer.preferences?.preferredRegions ?? [], preferredLanguages: viewer.preferences?.preferredLanguages ?? [], preferredTribes: viewer.preferences?.preferredTribes ?? [], tribeImportance: viewer.preferences?.tribeImportance ?? "open_to_all", preferredRelationshipGoal: viewer.preferences?.preferredRelationshipGoal ?? "serious", preferredHobbies: viewer.preferences?.preferredHobbies ?? [], openToLongDistance: viewer.preferences?.openToLongDistance ?? true });
+    }
+    hydrated.current = true;
   }, [viewer]);
 
-  function patch(values: Partial<FormState>) { setForm((current) => ({ ...current, ...values })); }
-  function validCurrent() {
-    if (step === 0) {
+  function patch(values: Partial<FormState>) { edited.current = true; setForm((current) => ({ ...current, ...values })); }
+  function validationError(targetStep = step) {
+    if (targetStep === 0) {
       if (form.displayName.trim().length < 2) return "Enter a display name with at least 2 characters.";
       if (!form.dateOfBirth) return "Add your date of birth.";
       if (!form.gender) return "Choose the identity that fits you.";
       if (form.bio.trim().length < 30) return "Write at least 30 characters about yourself.";
     }
-    if (step === 1) {
+    if (targetStep === 1) {
       if (!form.region) return "Choose your region.";
       if (!form.town.trim()) return "Add your town or city.";
       if (!form.languages.length) return "Choose at least one language.";
     }
-    if (step === 2) {
+    if (targetStep === 2) {
       if (!form.hobbies.length) return "Choose at least one interest.";
       if (!form.relationshipGoal) return "Choose what you are looking for.";
     }
-    if (step === 3) {
+    if (targetStep === 3) {
       if (!form.preferredGender) return "Choose who you would like to meet.";
       if (form.minAge > form.maxAge) return "Minimum age cannot be higher than maximum age.";
     }
     return null;
   }
   function next() {
-    const error = validCurrent();
+    const error = validationError();
     if (error) {
       toast.error("Check this step", { description: error, id: "onboarding-validation" });
       return;
@@ -70,6 +75,14 @@ function Onboarding() {
   }
 
   async function finish() {
+    for (let targetStep = 0; targetStep < steps.length - 1; targetStep += 1) {
+      const error = validationError(targetStep);
+      if (error) {
+        setStep(targetStep);
+        toast.error("Profile not saved", { description: error, id: "onboarding-validation" });
+        return;
+      }
+    }
     setBusy(true);
     try {
       await save(form);
@@ -82,8 +95,11 @@ function Onboarding() {
       }
       toast.success("Profile ready", { description: "Your details have been saved." });
       await navigate({ to: "/browse" });
-    } catch {
-      toast.error("We couldn't save your profile", { description: "Please check your details and try again." });
+    } catch (error) {
+      const description = error instanceof Error
+        ? error.message.replace(/^\[CONVEX [^\]]+\]\s*/i, "")
+        : "Please check your details and try again.";
+      toast.error("Profile not saved", { description, id: "onboarding-save" });
     }
     finally { setBusy(false); }
   }
