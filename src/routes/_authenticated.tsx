@@ -12,7 +12,7 @@ import type { Profile } from "@/lib/types";
 export const Route = createFileRoute("/_authenticated")({
   head: () =>
     privateHead(
-      "Your namflirt. account",
+      "namflirt.",
       "Private profiles, matches, messages and account settings.",
     ),
   component: AuthGate,
