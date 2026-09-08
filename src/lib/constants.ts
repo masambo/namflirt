@@ -6,7 +6,7 @@ export const REGIONS = [
 
 export const LANGUAGES = [
   "English", "Afrikaans", "Oshiwambo", "Otjiherero",
-  "Khoekhoegowab", "Rukwangali", "Rumanyo", "Thimbukushu",
+  "Khoekhoegowab", "Rukavango",
   "Silozi", "Setswana", "German", "Portuguese", "Other",
 ] as const;
 

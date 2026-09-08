@@ -365,6 +365,8 @@ export const save = mutation({
       throw new Error("Complete every required profile and matching field.");
     if (!args.languages.length || !args.hobbies.length)
       throw new Error("Choose at least one language and interest.");
+    if (!existing?.photos.length)
+      throw new Error("Add at least one photo before saving your profile.");
     if (args.minAge < 18 || args.maxAge > 100 || args.minAge > args.maxAge)
       throw new Error("Check your preferred age range.");
     const profile = {

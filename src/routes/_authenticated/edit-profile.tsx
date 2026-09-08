@@ -107,6 +107,10 @@ function EditProfile() {
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!form) return;
+    if (!(viewer?.photos.length || files.length)) {
+      toast.error("Photo required", { description: "Add at least one photo to your profile." });
+      return;
+    }
     if (
       form.displayName.trim().length < 2 ||
       form.bio.trim().length < 30 ||
@@ -122,7 +126,6 @@ function EditProfile() {
     }
     setBusy(true);
     try {
-      await save(form);
       for (const file of files) {
         const uploadUrl = await generateUploadUrl({});
         const response = await fetch(uploadUrl, {
@@ -133,7 +136,9 @@ function EditProfile() {
         if (!response.ok) throw new Error("A photo could not be uploaded.");
         const { storageId } = (await response.json()) as { storageId: string };
         await addPhoto({ storageId });
+        setFiles((current) => current.filter((pending) => pending !== file));
       }
+      await save(form);
       toast.success("Profile updated", { description: "Your changes are now visible." });
       await navigate({ to: "/me" });
     } catch (error) {
@@ -172,7 +177,7 @@ function EditProfile() {
       <form id="edit-profile" onSubmit={submit} className="space-y-5">
         <EditorSection
           title="Photos"
-          copy="Your first photo makes the first impression. Add clear, recent photos."
+          copy="At least one photo is required. Your first photo makes the first impression. Add clear, recent photos."
         >
           <div className="flex snap-x gap-3 overflow-x-auto pb-2">
             {viewer.photos.map((photo, index) => (

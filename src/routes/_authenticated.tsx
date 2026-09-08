@@ -27,7 +27,8 @@ function AuthGate() {
   const viewer = useQuery(api.profiles.viewer, isAuthenticated ? {} : "skip") as
     (Profile & { preferences: unknown }) | null | undefined;
   const onboarding = pathname.startsWith("/onboarding");
-  const needsProfile = isAuthenticated && viewer !== undefined && (!viewer || !viewer.completed);
+  const needsProfile = isAuthenticated && viewer !== undefined &&
+    (!viewer || !viewer.completed || !viewer.photos.length);
 
   useEffect(() => {
     if (!isClerkLoaded || isLoading) return;

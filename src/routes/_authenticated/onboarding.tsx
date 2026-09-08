@@ -88,6 +88,7 @@ function Onboarding() {
   const viewer = useQuery(api.profiles.viewer, {}) as
     (Profile & { preferences: Preferences | null }) | null | undefined;
   const save = useMutation(api.profiles.save);
+  const ensureViewer = useMutation(api.profiles.ensureViewer);
   const generateUploadUrl = useMutation(api.profiles.generateUploadUrl);
   const addPhoto = useMutation(api.profiles.addPhoto);
   const [step, setStep] = useState(0);
@@ -160,6 +161,8 @@ function Onboarding() {
       if (!form.preferredGender) return "Choose who you would like to meet.";
       if (form.minAge > form.maxAge) return "Minimum age cannot be higher than maximum age.";
     }
+    if (targetStep === 4 && !(viewer?.photos.length || files.length))
+      return "Add at least one photo to complete your profile.";
     return null;
   }
   function next() {
@@ -172,7 +175,7 @@ function Onboarding() {
   }
 
   async function finish() {
-    for (let targetStep = 0; targetStep < steps.length - 1; targetStep += 1) {
+    for (let targetStep = 0; targetStep < steps.length; targetStep += 1) {
       const error = validationError(targetStep);
       if (error) {
         setStep(targetStep);
@@ -182,7 +185,7 @@ function Onboarding() {
     }
     setBusy(true);
     try {
-      await save(form);
+      await ensureViewer({});
       for (const file of files) {
         const uploadUrl = await generateUploadUrl({});
         const response = await fetch(uploadUrl, {
@@ -193,7 +196,9 @@ function Onboarding() {
         if (!response.ok) throw new Error("A photo could not be uploaded.");
         const { storageId } = (await response.json()) as { storageId: string };
         await addPhoto({ storageId });
+        setFiles((current) => current.filter((pending) => pending !== file));
       }
+      await save(form);
       toast.success("Profile ready", { description: "Your details have been saved." });
       await navigate({ to: "/browse" });
     } catch (error) {
@@ -511,7 +516,7 @@ function StepPhotos({
       <Heading
         eyebrow="Last, but important"
         title="Show up clearly."
-        copy="Choose recent photos where you look like yourself. Your first image becomes your cover."
+        copy="At least one photo is required. Choose recent photos where you look like yourself. Your first image becomes your cover."
       />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {existing.map((url, index) => (
