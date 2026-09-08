@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { ArrowLeft, Camera, Check, Save } from "lucide-react";
+import { ArrowLeft, Camera, Check, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import {
@@ -58,9 +58,9 @@ function EditProfile() {
     (Profile & { preferences: Preferences | null }) | null | undefined;
   const save = useMutation(api.profiles.save);
   const generateUploadUrl = useMutation(api.profiles.generateUploadUrl);
-  const addPhoto = useMutation(api.profiles.addPhoto);
   const [form, setForm] = useState<EditState | null>(null);
   const [files, setFiles] = useState<File[]>([]);
+  const [removedPhotos, setRemovedPhotos] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -103,11 +103,13 @@ function EditProfile() {
     );
   const patch = (values: Partial<EditState>) =>
     setForm((current) => (current ? { ...current, ...values } : current));
+  const visiblePhotos = viewer.photos.filter((photo) => !removedPhotos.includes(photo));
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!form) return;
-    if (!(viewer?.photos.length || files.length)) {
+    if (busy) return;
+    if (!(visiblePhotos.length || files.length)) {
       toast.error("Photo required", { description: "Add at least one photo to your profile." });
       return;
     }
@@ -126,6 +128,7 @@ function EditProfile() {
     }
     setBusy(true);
     try {
+      const photoStorageIds: string[] = [];
       for (const file of files) {
         const uploadUrl = await generateUploadUrl({});
         const response = await fetch(uploadUrl, {
@@ -135,10 +138,11 @@ function EditProfile() {
         });
         if (!response.ok) throw new Error("A photo could not be uploaded.");
         const { storageId } = (await response.json()) as { storageId: string };
-        await addPhoto({ storageId });
-        setFiles((current) => current.filter((pending) => pending !== file));
+        photoStorageIds.push(storageId);
       }
-      await save(form);
+      await save({ ...form, removedPhotos, photoStorageIds });
+      setFiles([]);
+      setRemovedPhotos([]);
       toast.success("Profile updated", { description: "Your changes are now visible." });
       await navigate({ to: "/me" });
     } catch (error) {
@@ -177,47 +181,92 @@ function EditProfile() {
       <form id="edit-profile" onSubmit={submit} className="space-y-5">
         <EditorSection
           title="Photos"
-          copy="At least one photo is required. Your first photo makes the first impression. Add clear, recent photos."
+          copy="Keep at least one photo. Your first photo is your cover. Additions and removals apply when you save."
         >
-          <div className="flex snap-x gap-3 overflow-x-auto pb-2">
-            {viewer.photos.map((photo, index) => (
-              <img
-                key={photo}
-                src={photo}
-                alt={`Your photo ${index + 1}`}
-                className="aspect-[.8] w-36 shrink-0 snap-start rounded-2xl object-cover sm:w-44"
-              />
-            ))}
-            {files.map((file) => (
-              <NewPhotoPreview key={`${file.name}-${file.lastModified}`} file={file} />
-            ))}
-            {viewer.photos.length + files.length < 6 ? (
-              <label className="grid aspect-[.8] w-36 shrink-0 cursor-pointer place-items-center rounded-2xl border border-dashed border-white/15 text-center text-xs text-white/40 sm:w-44">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  className="sr-only"
-                  onChange={(event) => {
-                    const available = 6 - viewer.photos.length - files.length;
-                    const added = Array.from(event.target.files ?? [])
-                      .filter(
-                        (file) =>
-                          ["image/jpeg", "image/png", "image/webp"].includes(file.type) &&
-                          file.size <= 8_000_000,
-                      )
-                      .slice(0, available);
-                    setFiles((current) => [...current, ...added]);
-                    event.currentTarget.value = "";
-                  }}
-                />
-                <span>
-                  <Camera className="mx-auto mb-2 h-5 w-5" />
-                  Add photos
-                </span>
-              </label>
+          <fieldset disabled={busy} className="min-w-0">
+            <div className="flex snap-x gap-3 overflow-x-auto pb-2">
+              {visiblePhotos.map((photo, index) => (
+                <div key={photo} className="relative w-36 shrink-0 snap-start sm:w-44">
+                  <img
+                    src={photo}
+                    alt={`Your photo ${index + 1}`}
+                    className="aspect-[.8] w-full rounded-2xl object-cover"
+                  />
+                  {index === 0 ? (
+                    <span className="absolute bottom-2 left-2 rounded-full bg-black/65 px-2 py-1 text-xs text-white">
+                      Cover
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    aria-label={`Remove photo ${index + 1}`}
+                    onClick={() => setRemovedPhotos((current) => [...current, photo])}
+                    className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full bg-black/70 text-white hover:bg-red-600 disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              {files.map((file) => (
+                <div
+                  key={`${file.name}-${file.lastModified}`}
+                  className="relative shrink-0 snap-start"
+                >
+                  <NewPhotoPreview file={file} />
+                  <button
+                    type="button"
+                    aria-label={`Remove new photo ${file.name}`}
+                    onClick={() =>
+                      setFiles((current) => current.filter((pending) => pending !== file))
+                    }
+                    className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full bg-black/70 text-white hover:bg-red-600 disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              {visiblePhotos.length + files.length < 6 ? (
+                <label className="grid aspect-[.8] w-36 shrink-0 cursor-pointer place-items-center rounded-2xl border border-dashed border-white/15 text-center text-xs text-white/40 sm:w-44">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    className="sr-only"
+                    onChange={(event) => {
+                      const available = 6 - visiblePhotos.length - files.length;
+                      const added = Array.from(event.target.files ?? [])
+                        .filter(
+                          (file) =>
+                            ["image/jpeg", "image/png", "image/webp"].includes(file.type) &&
+                            file.size <= 8_000_000,
+                        )
+                        .slice(0, available);
+                      setFiles((current) => [...current, ...added]);
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                  <span>
+                    <Camera className="mx-auto mb-2 h-5 w-5" />
+                    Add photos
+                  </span>
+                </label>
+              ) : null}
+            </div>
+            {removedPhotos.length ? (
+              <button
+                type="button"
+                className="mt-3 text-sm text-primary underline"
+                onClick={() => setRemovedPhotos([])}
+              >
+                Undo photo removals
+              </button>
             ) : null}
-          </div>
+            {!visiblePhotos.length && !files.length ? (
+              <p role="status" className="mt-3 text-sm text-amber-300">
+                Add a photo before saving your profile.
+              </p>
+            ) : null}
+          </fieldset>
         </EditorSection>
         <EditorSection
           title="The essentials"

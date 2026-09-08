@@ -333,6 +333,8 @@ export const get = query({
 
 export const save = mutation({
   args: {
+    removedPhotos: v.optional(v.array(v.string())),
+    photoStorageIds: v.optional(v.array(v.id("_storage"))),
     displayName: v.string(),
     dateOfBirth: v.string(),
     gender: v.string(),
@@ -382,8 +384,21 @@ export const save = mutation({
       throw new Error("Complete every required profile and matching field.");
     if (!args.languages.length || !args.hobbies.length)
       throw new Error("Choose at least one language and interest.");
-    if (!existing?.photos.length)
-      throw new Error("Add at least one photo before saving your profile.");
+    const uploadedPhotos = await Promise.all(
+      (args.photoStorageIds ?? []).map(async (storageId) => {
+        const url = await ctx.storage.getUrl(storageId);
+        if (!url) throw new Error("A photo upload could not be resolved. Please try again.");
+        return url;
+      }),
+    );
+    const photos = [
+      ...new Set([
+        ...(existing?.photos ?? []).filter((photo) => !args.removedPhotos?.includes(photo)),
+        ...uploadedPhotos,
+      ]),
+    ];
+    if (!photos.length) throw new Error("Add at least one photo before saving your profile.");
+    if (photos.length > 6) throw new Error("You can add up to 6 photos.");
     if (args.minAge < 18 || args.maxAge > 100 || args.minAge > args.maxAge)
       throw new Error("Check your preferred age range.");
     const profile = {
@@ -403,7 +418,7 @@ export const save = mutation({
       religion: args.religion,
       education: args.education,
       occupation: args.occupation,
-      photos: existing?.photos ?? [],
+      photos,
       verified: existing?.verified ?? false,
       completed: true,
       isDemo: false,

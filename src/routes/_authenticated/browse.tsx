@@ -7,7 +7,6 @@ import { calcAge, LANGUAGES, REGIONS } from "@/lib/constants";
 import { calcMatch } from "@/lib/match";
 import type { Preferences, Profile } from "@/lib/types";
 import { Brand } from "@/components/Brand";
-import { DiscoveryScopeField } from "@/components/DiscoveryScopeField";
 import { COUNTRIES, countryName, formatLocation } from "@/lib/location";
 import { matchesDiscovery, profileCountry, type DiscoveryScope } from "../../../shared/discovery";
 
@@ -93,24 +92,6 @@ function Browse() {
         </p>
       </div>
 
-      <div className="mb-7 max-w-lg">
-        <DiscoveryScopeField value={scope} onChange={changeScope} />
-        {data?.preferences?.preferredGender ? (
-          <p className="mt-3 text-xs text-white/45">
-            Showing{" "}
-            {data.preferences.preferredGender === "female"
-              ? "women"
-              : data.preferences.preferredGender === "male"
-                ? "men"
-                : "people matching your gender preference"}
-            .{" "}
-            <Link to="/edit-profile" className="text-primary underline">
-              Edit preferences
-            </Link>
-          </p>
-        ) : null}
-      </div>
-
       {!data ? (
         <BrowseSkeleton />
       ) : ranked.length === 0 ? (
@@ -151,6 +132,8 @@ function Browse() {
         <FilterPanel
           country={country}
           scope={scope}
+          setScope={changeScope}
+          homeCountry={homeCountry}
           showRegions={selectedCountry === "NA"}
           setCountry={(value) => {
             setCountry(value);
@@ -248,6 +231,8 @@ function MiniCard({ profile, score }: { profile: Profile; score: number }) {
 function FilterPanel({
   country,
   scope,
+  setScope,
+  homeCountry,
   showRegions,
   setCountry,
   region,
@@ -258,6 +243,8 @@ function FilterPanel({
 }: {
   country: string;
   scope: DiscoveryScope;
+  setScope: (value: DiscoveryScope) => void;
+  homeCountry: string;
   showRegions: boolean;
   setCountry: (value: string) => void;
   region: string;
@@ -272,7 +259,7 @@ function FilterPanel({
       onMouseDown={onClose}
     >
       <div
-        className="w-full max-w-md rounded-[2rem] border border-white/10 bg-[#1b1b18] p-6 shadow-2xl"
+        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-[2rem] border border-white/10 bg-[#1b1b18] p-6 shadow-2xl"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -285,6 +272,17 @@ function FilterPanel({
           </button>
         </div>
         <div className="mt-7 space-y-5">
+          <label className="block">
+            <span className="field-label">Discover people</span>
+            <select
+              className="field-input mt-2"
+              value={scope}
+              onChange={(event) => setScope(event.target.value as DiscoveryScope)}
+            >
+              <option value="local">My country — {countryName(homeCountry)}</option>
+              <option value="international">International</option>
+            </select>
+          </label>
           {scope === "international" ? (
             <label className="block">
               <span className="field-label">Country</span>
@@ -311,6 +309,9 @@ function FilterPanel({
             />
           ) : null}
           <Select label="Language" value={language} options={LANGUAGES} onChange={setLanguage} />
+          <Link to="/edit-profile" className="inline-block text-xs text-primary underline">
+            Edit who you want to meet
+          </Link>
         </div>
         <div className="mt-7 grid grid-cols-2 gap-3">
           <button
@@ -377,7 +378,7 @@ function EmptyState() {
       <Heart className="mx-auto h-6 w-6 text-primary" />
       <h2 className="mt-5 text-3xl font-semibold tracking-[-.05em]">No one here yet.</h2>
       <p className="mt-2 text-sm text-white/40">
-        Try International or clear your location and language filters.
+        Open filters to discover internationally or clear your location and language filters.
       </p>
       <Link to="/edit-profile" className="mt-4 inline-block text-sm text-primary underline">
         Edit who you want to meet

@@ -76,6 +76,14 @@ function fixture(userId = "admin-user") {
             return query;
           },
           order: () => query,
+          filter(predicate) {
+            const matches = predicate({
+              field: (name) => name,
+              eq: (field, value) => (row) => row[field] === value,
+            });
+            rows = rows.filter(matches);
+            return query;
+          },
           unique: async () => rows[0] ?? null,
           collect: async () => rows,
           take: async (count) => rows.slice(0, count),
@@ -86,6 +94,90 @@ function fixture(userId = "admin-user") {
   };
   return { ctx, tables, member };
 }
+
+const validProfile = {
+  displayName: "Member",
+  dateOfBirth: "1995-01-01",
+  gender: "male",
+  bio: "I enjoy spending time outside and meeting new people.",
+  country: "NA",
+  region: "Khomas",
+  town: "Windhoek",
+  tribe: "",
+  languages: ["English"],
+  hobbies: ["Music"],
+  lifestyle: [],
+  relationshipGoal: "serious",
+  religion: "",
+  education: "",
+  occupation: "",
+  preferredGender: "female",
+  minAge: 18,
+  maxAge: 50,
+  preferredRegions: [],
+  preferredLanguages: [],
+  preferredTribes: [],
+  tribeImportance: "open_to_all",
+  preferredRelationshipGoal: "serious",
+  preferredHobbies: [],
+  openToLongDistance: true,
+};
+
+test("photo edits cannot remove the final photo without a replacement", async () => {
+  const { ctx, member } = fixture("member-user");
+  await assert.rejects(
+    profiles.save._handler(ctx, { ...validProfile, removedPhotos: ["photo"] }),
+    /at least one photo/,
+  );
+  assert.deepEqual(member.photos, ["photo"]);
+});
+
+test("photo edits replace the last photo and preserve other members' photos", async () => {
+  const { ctx, member, tables } = fixture("member-user");
+  ctx.storage = { getUrl: async () => "replacement" };
+  await profiles.save._handler(ctx, {
+    ...validProfile,
+    removedPhotos: ["photo", "other-photo"],
+    photoStorageIds: ["upload"],
+  });
+  assert.deepEqual(member.photos, ["replacement"]);
+  assert.deepEqual(tables.profiles.find((profile) => profile._id === "other").photos, [
+    "other-photo",
+  ]);
+});
+
+test("photo replacement works at the six-photo limit", async () => {
+  const { ctx, member } = fixture("member-user");
+  member.photos = ["a", "b", "c", "d", "e", "f"];
+  ctx.storage = { getUrl: async () => "replacement" };
+  await profiles.save._handler(ctx, {
+    ...validProfile,
+    removedPhotos: ["a"],
+    photoStorageIds: ["upload"],
+  });
+  assert.deepEqual(member.photos, ["b", "c", "d", "e", "f", "replacement"]);
+});
+
+test("failed uploads and excess photos leave saved photos unchanged", async () => {
+  const { ctx, member } = fixture("member-user");
+  ctx.storage = { getUrl: async () => null };
+  await assert.rejects(
+    profiles.save._handler(ctx, {
+      ...validProfile,
+      removedPhotos: ["photo"],
+      photoStorageIds: ["missing"],
+    }),
+    /could not be resolved/,
+  );
+  assert.deepEqual(member.photos, ["photo"]);
+  member.photos = ["a", "b", "c", "d", "e", "f"];
+  ctx.storage.getUrl = async () => "extra";
+  await assert.rejects(
+    profiles.save._handler(ctx, { ...validProfile, photoStorageIds: ["upload"] }),
+    /up to 6 photos/,
+  );
+  assert.equal(member.photos.length, 6);
+});
 
 test("only admins can delete profiles, and cannot delete themselves", async () => {
   const { ctx, member } = fixture("member-user");
