@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { errorMessage } from "@/lib/errors";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -308,8 +309,8 @@ function Reports() {
     try {
       await resolveReport({ reportId, status: next });
       toast.success(next === "resolved" ? "Report resolved." : "Report dismissed.");
-    } catch {
-      toast.error("Report not updated", { description: "Please try again." });
+    } catch (error) {
+      toast.error("Report not updated", { description: errorMessage(error) });
     }
   }
 
@@ -470,7 +471,7 @@ function MemberActions({ member }: { member: AdminMember }) {
       setDeleteOpen(false);
     } catch (error) {
       toast.error("Profile not deleted", {
-        description: error instanceof Error ? error.message : "Please try again.",
+        description: errorMessage(error),
       });
     } finally {
       setDeleting(false);
@@ -482,8 +483,8 @@ function MemberActions({ member }: { member: AdminMember }) {
     try {
       await setStatus({ profileId: member._id, status: next });
       toast.success(next === "active" ? "Member restored." : "Member suspended.");
-    } catch {
-      toast.error("Member not updated", { description: "Please try again." });
+    } catch (error) {
+      toast.error("Member not updated", { description: errorMessage(error) });
     }
   }
 
@@ -491,8 +492,8 @@ function MemberActions({ member }: { member: AdminMember }) {
     try {
       await setVerified({ profileId: member._id, verified: !member.verified });
       toast.success(member.verified ? "Verification removed." : "Member verified.");
-    } catch {
-      toast.error("Verification not updated.");
+    } catch (error) {
+      toast.error("Verification not updated", { description: errorMessage(error) });
     }
   }
 
@@ -500,8 +501,8 @@ function MemberActions({ member }: { member: AdminMember }) {
     try {
       await setPlan({ profileId: member._id, plan: next });
       toast.success(`Plan changed to ${next}.`);
-    } catch {
-      toast.error("Plan not updated.");
+    } catch (error) {
+      toast.error("Plan not updated", { description: errorMessage(error) });
     }
   }
 

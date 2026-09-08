@@ -56,6 +56,13 @@ verification controls, and report triage. Never expose `ADMIN_EMAILS` or `ADMIN_
 
 ## Production deployment
 
+The current Vercel build command (`npm run build`) deploys only the frontend.
+After changes to `convex/`, deploy the backend before pushing the frontend. Otherwise,
+new arguments (such as profile photo edits) are rejected by the older production validator.
+For automatic deployment of both, set a production `CONVEX_DEPLOY_KEY` in Vercel and use
+`npx convex deploy --cmd "npm run build" --cmd-url-env-var-name VITE_CONVEX_URL` as the
+build command. Keep the deploy key server-side; never commit it or give it a `VITE_` prefix.
+
 Before deploying the frontend, deploy or select a hosted Convex deployment and set its server-side
 environment variables:
 

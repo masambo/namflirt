@@ -1,6 +1,6 @@
-import { mutation, query, type MutationCtx } from "./_generated/server";
+import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { getAdminIdentity, requireAdmin } from "./authHelpers";
 import { normalizePlan } from "./plans";
 
@@ -29,6 +29,23 @@ function profileSummary(profile: Doc<"profiles">, reportCount = 0) {
     moderationNote: profile.moderationNote,
     lastActive: profile.lastActive,
     reportCount,
+  };
+}
+
+async function reportMember(ctx: Pick<QueryCtx, "db">, profileId: Id<"profiles">) {
+  const profile = await ctx.db.get(profileId);
+  if (profile) return profileSummary(profile);
+  return {
+    _id: profileId,
+    _creationTime: 0,
+    displayName: "Deleted member",
+    completed: false,
+    verified: false,
+    isDemo: false,
+    plan: "free" as const,
+    status: "deleted" as const,
+    lastActive: 0,
+    reportCount: 0,
   };
 }
 
@@ -163,8 +180,8 @@ export const reports = query({
         .slice(0, 200)
         .map(async (report) => ({
           ...report,
-          reporter: profileSummary((await ctx.db.get(report.reporterProfileId)) as Doc<"profiles">),
-          reported: profileSummary((await ctx.db.get(report.reportedProfileId)) as Doc<"profiles">),
+          reporter: await reportMember(ctx, report.reporterProfileId),
+          reported: await reportMember(ctx, report.reportedProfileId),
         })),
     );
   },
@@ -191,10 +208,10 @@ export const setMemberStatus = mutation({
   handler: async (ctx, { profileId, status, note }) => {
     const admin = await requireAdmin(ctx);
     const profile = await ctx.db.get(profileId);
-    if (!profile) throw new Error("Member not found.");
-    if (profile.status === "deleted") throw new Error("This profile has been deleted.");
+    if (!profile) throw new ConvexError("Member not found.");
+    if (profile.status === "deleted") throw new ConvexError("This profile has been deleted.");
     if (profile.userId === admin.userId && status === "suspended") {
-      throw new Error("You cannot suspend your own account.");
+      throw new ConvexError("You cannot suspend your own account.");
     }
     const cleanNote = note?.trim().slice(0, 300);
     await ctx.db.patch(profileId, {
@@ -217,7 +234,7 @@ export const setVerified = mutation({
   handler: async (ctx, { profileId, verified }) => {
     const admin = await requireAdmin(ctx);
     const profile = await ctx.db.get(profileId);
-    if (!profile || profile.status === "deleted") throw new Error("Member not found.");
+    if (!profile || profile.status === "deleted") throw new ConvexError("Member not found.");
     await ctx.db.patch(profileId, { verified });
     await audit(
       ctx,
@@ -234,7 +251,7 @@ export const setPlan = mutation({
   handler: async (ctx, { profileId, plan }) => {
     const admin = await requireAdmin(ctx);
     const profile = await ctx.db.get(profileId);
-    if (!profile || profile.status === "deleted") throw new Error("Member not found.");
+    if (!profile || profile.status === "deleted") throw new ConvexError("Member not found.");
     await ctx.db.patch(profileId, { plan });
     await audit(ctx, admin.userId, "plan_changed", profileId, plan);
     return { plan };
@@ -246,9 +263,9 @@ export const deleteProfile = mutation({
   handler: async (ctx, { profileId }) => {
     const admin = await requireAdmin(ctx);
     const profile = await ctx.db.get(profileId);
-    if (!profile) throw new Error("Member not found.");
+    if (!profile) throw new ConvexError("Member not found.");
     if (profile.userId === admin.userId)
-      throw new Error("You cannot delete your own admin profile.");
+      throw new ConvexError("You cannot delete your own admin profile.");
     if (profile.status === "deleted") return;
     await ctx.db.patch(profileId, { status: "deleted", completed: false });
     await audit(ctx, admin.userId, "profile_deleted", profileId);
@@ -263,7 +280,7 @@ export const resolveReport = mutation({
   handler: async (ctx, { reportId, status }) => {
     const admin = await requireAdmin(ctx);
     const report = await ctx.db.get(reportId);
-    if (!report) throw new Error("Report not found.");
+    if (!report) throw new ConvexError("Report not found.");
     await ctx.db.patch(reportId, { status, resolvedAt: Date.now(), resolvedBy: admin.email });
     await audit(ctx, admin.userId, `report_${status}`, report.reportedProfileId, String(reportId));
     return { status };

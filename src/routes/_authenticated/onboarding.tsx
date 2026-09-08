@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { ArrowLeft, ArrowRight, Camera, Check, MapPin, Plus, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { errorMessage } from "@/lib/errors";
 import {
   EDUCATION_LEVELS,
   GENDERS,
@@ -202,10 +203,7 @@ function Onboarding() {
       toast.success("Profile ready", { description: "Your details have been saved." });
       await navigate({ to: "/browse" });
     } catch (error) {
-      const description =
-        error instanceof Error
-          ? error.message.replace(/^\[CONVEX [^\]]+\]\s*/i, "")
-          : "Please check your details and try again.";
+      const description = errorMessage(error, "Please check your details and try again.");
       toast.error("Profile not saved", { description, id: "onboarding-save" });
     } finally {
       setBusy(false);

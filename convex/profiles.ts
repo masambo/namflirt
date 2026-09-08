@@ -1,5 +1,5 @@
 import { mutation, query, type MutationCtx } from "./_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { getClerkUserId, isConfiguredAdmin, requireClerkUserId } from "./authHelpers";
 import { currentUsageDay, currentUsageMonth, normalizePlan, planLimits } from "./plans";
 import { COUNTRY_CODES, matchesDiscovery } from "../shared/discovery";
@@ -142,7 +142,7 @@ async function requireUser(ctx: MutationCtx) {
     .query("profiles")
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .unique();
-  if (profile && !isProfileActive(profile)) throw new Error("Your profile is not available.");
+  if (profile && !isProfileActive(profile)) throw new ConvexError("Your profile is not available.");
   return userId;
 }
 
@@ -195,7 +195,7 @@ export const ensureViewer = mutation({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("You need to sign in first.");
+    if (!identity) throw new ConvexError("You need to sign in first.");
 
     const existing = await ctx.db
       .query("profiles")
@@ -255,7 +255,7 @@ export const list = query({
   args: { discoveryScope: v.optional(v.union(v.literal("local"), v.literal("international"))) },
   handler: async (ctx, { discoveryScope }) => {
     const userId = await getClerkUserId(ctx);
-    if (!userId) throw new Error("You need to sign in first.");
+    if (!userId) throw new ConvexError("You need to sign in first.");
     const viewer = userId
       ? await ctx.db
           .query("profiles")
@@ -313,7 +313,7 @@ export const get = query({
   args: { profileId: v.id("profiles") },
   handler: async (ctx, { profileId }) => {
     const viewerUserId = await getClerkUserId(ctx);
-    if (!viewerUserId) throw new Error("You need to sign in first.");
+    if (!viewerUserId) throw new ConvexError("You need to sign in first.");
     const viewer = await ctx.db
       .query("profiles")
       .withIndex("by_user", (q) => q.eq("userId", viewerUserId))
@@ -371,9 +371,9 @@ export const save = mutation({
     const country = args.country ?? existing?.country ?? "NA";
     const age = Math.floor((Date.now() - new Date(args.dateOfBirth).getTime()) / 31_557_600_000);
     if (!Number.isFinite(age) || age < 18)
-      throw new Error("NamFlirt is for adults aged 18 and over.");
+      throw new ConvexError("NamFlirt is for adults aged 18 and over.");
     if (args.displayName.trim().length < 2 || args.bio.trim().length < 30)
-      throw new Error("Add a real name and a little more about yourself.");
+      throw new ConvexError("Add a real name and a little more about yourself.");
     if (
       !args.gender ||
       (country === "NA" && !args.region.trim()) ||
@@ -381,13 +381,13 @@ export const save = mutation({
       !args.relationshipGoal ||
       !args.preferredGender
     )
-      throw new Error("Complete every required profile and matching field.");
+      throw new ConvexError("Complete every required profile and matching field.");
     if (!args.languages.length || !args.hobbies.length)
-      throw new Error("Choose at least one language and interest.");
+      throw new ConvexError("Choose at least one language and interest.");
     const uploadedPhotos = await Promise.all(
       (args.photoStorageIds ?? []).map(async (storageId) => {
         const url = await ctx.storage.getUrl(storageId);
-        if (!url) throw new Error("A photo upload could not be resolved. Please try again.");
+        if (!url) throw new ConvexError("A photo upload could not be resolved. Please try again.");
         return url;
       }),
     );
@@ -397,10 +397,10 @@ export const save = mutation({
         ...uploadedPhotos,
       ]),
     ];
-    if (!photos.length) throw new Error("Add at least one photo before saving your profile.");
-    if (photos.length > 6) throw new Error("You can add up to 6 photos.");
+    if (!photos.length) throw new ConvexError("Add at least one photo before saving your profile.");
+    if (photos.length > 6) throw new ConvexError("You can add up to 6 photos.");
     if (args.minAge < 18 || args.maxAge > 100 || args.minAge > args.maxAge)
-      throw new Error("Check your preferred age range.");
+      throw new ConvexError("Check your preferred age range.");
     const profile = {
       userId,
       displayName: args.displayName.trim().slice(0, 60),
@@ -431,9 +431,9 @@ export const save = mutation({
       profileViewsUsedThisMonth: existing?.profileViewsUsedThisMonth ?? 0,
       likesUsedToday: existing?.likesUsedToday ?? 0,
     };
-    if (!COUNTRY_CODES.includes(profile.country)) throw new Error("Choose a valid country.");
+    if (!COUNTRY_CODES.includes(profile.country)) throw new ConvexError("Choose a valid country.");
     if (!["female", "male", "non_binary", "other"].includes(args.preferredGender))
-      throw new Error("Choose who you would like to meet.");
+      throw new ConvexError("Choose who you would like to meet.");
     const profileId = existing
       ? (await ctx.db.patch(existing._id, profile), existing._id)
       : await ctx.db.insert("profiles", profile);
@@ -489,7 +489,7 @@ export const generateUploadUrl = mutation({
 export const choosePlan = mutation({
   args: { plan: v.union(v.literal("free"), v.literal("premium"), v.literal("vip")) },
   handler: async () => {
-    throw new Error("New members receive Premium for 30 days.");
+    throw new ConvexError("New members receive Premium for 30 days.");
   },
 });
 
@@ -536,10 +536,10 @@ export const addPhoto = mutation({
       .query("profiles")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
-    if (!profile) throw new Error("Complete your profile before adding photos.");
-    if (profile.photos.length >= 6) throw new Error("You can add up to 6 photos.");
+    if (!profile) throw new ConvexError("Complete your profile before adding photos.");
+    if (profile.photos.length >= 6) throw new ConvexError("You can add up to 6 photos.");
     const url = await ctx.storage.getUrl(storageId);
-    if (!url) throw new Error("Upload could not be resolved.");
+    if (!url) throw new ConvexError("Upload could not be resolved.");
     await ctx.db.patch(profile._id, { photos: [...profile.photos, url] });
     return url;
   },

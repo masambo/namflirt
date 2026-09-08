@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { ArrowLeft, Camera, Check, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { errorMessage } from "@/lib/errors";
 import {
   EDUCATION_LEVELS,
   GENDERS,
@@ -147,7 +148,10 @@ function EditProfile() {
       await navigate({ to: "/me" });
     } catch (error) {
       toast.error("Profile not updated", {
-        description: error instanceof Error ? error.message : "Please try again.",
+        description: errorMessage(
+          error,
+          "Your profile could not be saved. Your changes are still here; please try again.",
+        ),
       });
     } finally {
       setBusy(false);

@@ -1,3 +1,4 @@
+import { ConvexError } from "convex/values";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 
 type AuthContext = Pick<QueryCtx | MutationCtx, "auth">;
@@ -9,7 +10,7 @@ export async function getClerkUserId(ctx: AuthContext) {
 
 export async function requireClerkUserId(ctx: AuthContext) {
   const userId = await getClerkUserId(ctx);
-  if (!userId) throw new Error("You need to sign in first.");
+  if (!userId) throw new ConvexError("You need to sign in first.");
   return userId;
 }
 
@@ -53,6 +54,6 @@ export async function getAdminIdentity(ctx: Pick<QueryCtx | MutationCtx, "auth" 
 
 export async function requireAdmin(ctx: Pick<QueryCtx | MutationCtx, "auth" | "db">) {
   const admin = await getAdminIdentity(ctx);
-  if (!admin) throw new Error("You do not have permission to access this area.");
+  if (!admin) throw new ConvexError("You do not have permission to access this area.");
   return admin;
 }

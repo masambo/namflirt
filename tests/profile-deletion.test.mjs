@@ -24,8 +24,91 @@ const profiles = await import("../convex/profiles.ts");
 const conversations = await import("../convex/conversations.ts");
 const likes = await import("../convex/likes.ts");
 const notifications = await import("../convex/notifications.ts");
+const { ConvexError } = await import("convex/values");
+const { errorMessage } = await import("../src/lib/errors.ts");
 process.env.ADMIN_USER_IDS = "admin-user";
 process.env.ADMIN_EMAILS = "";
+
+test("profile and admin errors display useful messages without Convex internals", () => {
+  assert.equal(errorMessage(new ConvexError("Add at least one photo.")), "Add at least one photo.");
+  assert.equal(
+    errorMessage(new Error("[CONVEX M(profiles:save)] Server Error"), "Please retry."),
+    "Please retry.",
+  );
+});
+
+test("all admin endpoints reject regular members", async () => {
+  const { ctx } = fixture("member-user");
+  assert.equal((await admin.access._handler(ctx, {})).isAdmin, false);
+  for (const [endpoint, args] of [
+    [admin.overview, {}],
+    [admin.members, {}],
+    [admin.reports, {}],
+    [admin.setMemberStatus, { profileId: "member", status: "suspended" }],
+    [admin.setVerified, { profileId: "member", verified: true }],
+    [admin.setPlan, { profileId: "member", plan: "vip" }],
+    [admin.deleteProfile, { profileId: "member" }],
+    [admin.resolveReport, { reportId: "report", status: "resolved" }],
+  ])
+    await assert.rejects(endpoint._handler(ctx, args), /permission/);
+});
+
+test("admin verification, plans, suspension, and restoration update members and audits", async () => {
+  const { ctx, member, tables } = fixture();
+  assert.equal((await admin.access._handler(ctx, {})).isAdmin, true);
+  await admin.setVerified._handler(ctx, { profileId: "member", verified: true });
+  assert.equal(member.verified, true);
+  await admin.setVerified._handler(ctx, { profileId: "member", verified: false });
+  assert.equal(member.verified, false);
+  for (const plan of ["premium", "vip", "free"]) {
+    await admin.setPlan._handler(ctx, { profileId: "member", plan });
+    assert.equal(member.plan, plan);
+  }
+  await admin.setMemberStatus._handler(ctx, {
+    profileId: "member",
+    status: "suspended",
+    note: " Review ",
+  });
+  assert.equal(member.status, "suspended");
+  assert.equal(member.moderationNote, "Review");
+  await admin.setMemberStatus._handler(ctx, { profileId: "member", status: "active" });
+  assert.equal(member.status, "active");
+  assert.equal(tables.adminAudit.length, 7);
+});
+
+test("admin member filters and overview reflect updated and deleted profiles", async () => {
+  const { ctx, member } = fixture();
+  await admin.setPlan._handler(ctx, { profileId: "member", plan: "vip" });
+  const members = await admin.members._handler(ctx, {
+    search: "MEMBER",
+    plan: "vip",
+    status: "active",
+  });
+  assert.deepEqual(
+    members.map((member) => member._id),
+    ["member"],
+  );
+  assert.equal((await admin.overview._handler(ctx, {})).plans.vip, 1);
+  await admin.deleteProfile._handler(ctx, { profileId: member._id });
+  assert.deepEqual(
+    (await admin.members._handler(ctx, {})).map((member) => member._id),
+    ["other"],
+  );
+  assert.equal((await admin.overview._handler(ctx, {})).metrics.members, 1);
+});
+
+test("reports can be resolved or dismissed even if a related profile is missing", async () => {
+  const { ctx, tables } = fixture();
+  tables.reports[0].reporterProfileId = "missing";
+  const reports = await admin.reports._handler(ctx, { status: "open" });
+  assert.equal(reports[0].reporter.displayName, "Deleted member");
+  await admin.resolveReport._handler(ctx, { reportId: "report", status: "resolved" });
+  assert.equal(tables.reports[0].status, "resolved");
+  assert.deepEqual(await admin.reports._handler(ctx, { status: "open" }), []);
+  await admin.resolveReport._handler(ctx, { reportId: "report", status: "dismissed" });
+  assert.equal(tables.reports[0].status, "dismissed");
+  assert.equal(tables.adminAudit.length, 2);
+});
 
 function fixture(userId = "admin-user") {
   const member = {
@@ -35,15 +118,41 @@ function fixture(userId = "admin-user") {
     completed: true,
     photos: ["photo"],
     displayName: "Member",
+    _creationTime: Date.now(),
+    lastActive: Date.now(),
   };
-  const other = { _id: "other", userId: "other-user", completed: true, photos: ["other-photo"] };
+  const other = {
+    _id: "other",
+    userId: "other-user",
+    displayName: "Other",
+    _creationTime: Date.now(),
+    lastActive: Date.now(),
+    completed: true,
+    photos: ["other-photo"],
+  };
   const tables = {
     profiles: [member, other],
     adminAudit: [],
+    reports: [
+      {
+        _id: "report",
+        reporterProfileId: "other",
+        reportedProfileId: "member",
+        status: "open",
+        reason: "spam",
+        createdAt: Date.now(),
+      },
+    ],
     preferences: [],
     conversations: [{ _id: "chat", userA: "other", userB: "member" }],
     messages: [
-      { _id: "message", conversationId: "chat", senderProfileId: "member", body: "Hello" },
+      {
+        _id: "message",
+        conversationId: "chat",
+        senderProfileId: "member",
+        body: "Hello",
+        createdAt: Date.now(),
+      },
     ],
     likes: [{ _id: "like", fromProfileId: "member", toProfileId: "other" }],
     notifications: [
