@@ -439,7 +439,7 @@ function ProfileLoadFeedback({ issue }: { issue: ProfileLoadIssue }) {
     plan_limit: {
       eyebrow: "Plan limit",
       title: "You've used this month's profile views.",
-      copy: "New members receive Premium access for 14 days.",
+      copy: "New members receive Premium access for 30 days.",
       action: "See plans",
       to: "/plans" as const,
     },

@@ -1,5 +1,6 @@
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { isProfileActive } from "../shared/profileStatus";
 import { getClerkUserId } from "./authHelpers";
 import { currentUsageMonth, normalizePlan, planLimits } from "./plans";
 import { createNotification } from "./notificationHelpers";
@@ -12,7 +13,7 @@ async function viewerProfile(ctx: MutationCtx) {
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .unique();
   if (!profile) throw new Error("Complete your profile first.");
-  if (profile.status === "suspended") throw new Error("Your account is currently suspended.");
+  if (!isProfileActive(profile)) throw new Error("Your profile is not available.");
   return profile;
 }
 
@@ -25,7 +26,7 @@ export const list = query({
       .query("profiles")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
-    if (!profile) return [];
+    if (!profile || !isProfileActive(profile)) return [];
     const [asA, asB] = await Promise.all([
       ctx.db
         .query("conversations")
@@ -53,9 +54,9 @@ export const list = query({
         };
       }),
     );
-    return rows.sort(
-      (a, b) => (b.lastMessageAt ?? b._creationTime) - (a.lastMessageAt ?? a._creationTime),
-    );
+    return rows
+      .filter((row) => isProfileActive(row.other))
+      .sort((a, b) => (b.lastMessageAt ?? b._creationTime) - (a.lastMessageAt ?? a._creationTime));
   },
 });
 
@@ -66,7 +67,7 @@ export const start = mutation({
     const plan = normalizePlan(profile.plan);
     if (profile._id === profileId) return { status: "self" as const };
     const target = await ctx.db.get(profileId);
-    if (!target || !target.completed || target.status === "suspended")
+    if (!target || !target.completed || !isProfileActive(target))
       return { status: "not_found" as const };
     const [userA, userB] =
       String(profile._id) < String(profileId) ? [profile._id, profileId] : [profileId, profile._id];
@@ -108,6 +109,7 @@ export const detail = query({
     const conversation = await ctx.db.get(conversationId);
     if (
       !profile ||
+      !isProfileActive(profile) ||
       !conversation ||
       (conversation.userA !== profile._id && conversation.userB !== profile._id)
     )
@@ -115,6 +117,7 @@ export const detail = query({
     const other = await ctx.db.get(
       conversation.userA === profile._id ? conversation.userB : conversation.userA,
     );
+    if (!isProfileActive(other)) return null;
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation", (q) => q.eq("conversationId", conversationId))
@@ -161,7 +164,7 @@ export const send = mutation({
     const recipientId =
       conversation.userA === profile._id ? conversation.userB : conversation.userA;
     const recipient = await ctx.db.get(recipientId);
-    if (!recipient || recipient.status === "suspended") return { status: "not_found" as const };
+    if (!recipient || !isProfileActive(recipient)) return { status: "not_found" as const };
     const month = currentUsageMonth();
     const plan = normalizePlan(profile.plan);
     const used = profile.usageMonth === month ? (profile.messagesUsedThisMonth ?? 0) : 0;

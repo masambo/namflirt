@@ -20,6 +20,7 @@ import {
   Sparkles,
   UserRoundCheck,
   UsersRound,
+  Trash2,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -46,7 +47,7 @@ import {
 export const Route = createFileRoute("/_authenticated/admin")({ component: AdminDashboard });
 
 type AdminTab = "overview" | "members" | "reports";
-type MemberStatus = "active" | "suspended";
+type MemberStatus = "active" | "suspended" | "deleted";
 type MemberPlan = "free" | "premium" | "vip";
 
 interface AdminMember {
@@ -452,9 +453,29 @@ function MemberTable({ members, compact = false }: { members: AdminMember[]; com
 
 function MemberActions({ member }: { member: AdminMember }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const deleteProfile = useMutation(api.admin.deleteProfile);
   const setStatus = useMutation(api.admin.setMemberStatus);
   const setVerified = useMutation(api.admin.setVerified);
   const setPlan = useMutation(api.admin.setPlan);
+
+  async function removeProfile() {
+    setDeleting(true);
+    try {
+      await deleteProfile({ profileId: member._id });
+      toast.success("Profile deleted", {
+        description: "The member is no longer visible and cannot access the app.",
+      });
+      setDeleteOpen(false);
+    } catch (error) {
+      toast.error("Profile not deleted", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function updateStatus() {
     const next = member.status === "suspended" ? "active" : "suspended";
@@ -483,6 +504,8 @@ function MemberActions({ member }: { member: AdminMember }) {
       toast.error("Plan not updated.");
     }
   }
+
+  if (member.status === "deleted") return <span className="text-xs text-white/40">Deleted</span>;
 
   return (
     <>
@@ -534,8 +557,50 @@ function MemberActions({ member }: { member: AdminMember }) {
             )}
             {member.status === "suspended" ? "Restore member" : "Suspend member"}
           </DropdownMenuItem>
+          <DropdownMenuSeparator className="bg-white/8" />
+          <DropdownMenuItem
+            onSelect={() => setDeleteOpen(true)}
+            className="text-red-300 focus:bg-red-400/10 focus:text-red-200"
+          >
+            <Trash2 className="mr-2 h-4 w-4" /> Delete profile
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <AlertDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!deleting) setDeleteOpen(open);
+        }}
+      >
+        <AlertDialogContent className="border-white/10 bg-[#191917] text-white sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {member.displayName}'s profile?</AlertDialogTitle>
+            <AlertDialogDescription className="text-white/45">
+              This removes the profile from browsing, likes, matches, notifications, and
+              conversations. The member will lose access and cannot restore the profile by signing
+              in again. Moderation records are retained. This action cannot be undone here.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={deleting}
+              className="border-white/10 bg-transparent text-white"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={(event) => {
+                event.preventDefault();
+                void removeProfile();
+              }}
+              className="bg-red-500 text-white hover:bg-red-400"
+            >
+              {deleting ? "Deleting…" : "Delete profile"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent className="border-white/10 bg-[#191917] text-white sm:max-w-md">
           <AlertDialogHeader>

@@ -92,7 +92,7 @@ function Me() {
                   </span>
                   <div>
                     <p className="text-sm font-black text-white">
-                      Congratulations, your 14-day Premium trial is active.
+                      Congratulations, your 30-day Premium trial is active.
                     </p>
                     <p className="mt-1 text-xs leading-relaxed text-white/50">
                       Enjoy all Premium benefits during your trial.

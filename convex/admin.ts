@@ -53,7 +53,9 @@ export const overview = query({
     ]);
 
     const now = Date.now();
-    const realProfiles = profiles.filter((profile) => !profile.isDemo);
+    const realProfiles = profiles.filter(
+      (profile) => !profile.isDemo && profile.status !== "deleted",
+    );
     const pairKeys = new Set(
       likes.map((like) => `${String(like.fromProfileId)}:${String(like.toProfileId)}`),
     );
@@ -130,7 +132,7 @@ export const members = query({
     }
     const search = args.search?.trim().toLowerCase() ?? "";
     return profiles
-      .filter((profile) => !profile.isDemo)
+      .filter((profile) => !profile.isDemo && profile.status !== "deleted")
       .filter((profile) => {
         if (!search) return true;
         return `${profile.displayName} ${profile.email ?? ""} ${profile.town ?? ""}`
@@ -190,6 +192,7 @@ export const setMemberStatus = mutation({
     const admin = await requireAdmin(ctx);
     const profile = await ctx.db.get(profileId);
     if (!profile) throw new Error("Member not found.");
+    if (profile.status === "deleted") throw new Error("This profile has been deleted.");
     if (profile.userId === admin.userId && status === "suspended") {
       throw new Error("You cannot suspend your own account.");
     }
@@ -213,7 +216,8 @@ export const setVerified = mutation({
   args: { profileId: v.id("profiles"), verified: v.boolean() },
   handler: async (ctx, { profileId, verified }) => {
     const admin = await requireAdmin(ctx);
-    if (!(await ctx.db.get(profileId))) throw new Error("Member not found.");
+    const profile = await ctx.db.get(profileId);
+    if (!profile || profile.status === "deleted") throw new Error("Member not found.");
     await ctx.db.patch(profileId, { verified });
     await audit(
       ctx,
@@ -229,10 +233,25 @@ export const setPlan = mutation({
   args: { profileId: v.id("profiles"), plan },
   handler: async (ctx, { profileId, plan }) => {
     const admin = await requireAdmin(ctx);
-    if (!(await ctx.db.get(profileId))) throw new Error("Member not found.");
+    const profile = await ctx.db.get(profileId);
+    if (!profile || profile.status === "deleted") throw new Error("Member not found.");
     await ctx.db.patch(profileId, { plan });
     await audit(ctx, admin.userId, "plan_changed", profileId, plan);
     return { plan };
+  },
+});
+
+export const deleteProfile = mutation({
+  args: { profileId: v.id("profiles") },
+  handler: async (ctx, { profileId }) => {
+    const admin = await requireAdmin(ctx);
+    const profile = await ctx.db.get(profileId);
+    if (!profile) throw new Error("Member not found.");
+    if (profile.userId === admin.userId)
+      throw new Error("You cannot delete your own admin profile.");
+    if (profile.status === "deleted") return;
+    await ctx.db.patch(profileId, { status: "deleted", completed: false });
+    await audit(ctx, admin.userId, "profile_deleted", profileId);
   },
 });
 

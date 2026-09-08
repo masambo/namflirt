@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getClerkUserId } from "./authHelpers";
+import { isProfileActive } from "../shared/profileStatus";
 
 export const list = query({
   args: {},
@@ -11,7 +12,7 @@ export const list = query({
       .query("profiles")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
-    if (!profile) return { items: [], unreadCount: 0 };
+    if (!profile || !isProfileActive(profile)) return { items: [], unreadCount: 0 };
 
     const notifications = await ctx.db
       .query("notifications")
@@ -19,14 +20,15 @@ export const list = query({
       .order("desc")
       .take(40);
     const items = await Promise.all(
-      notifications.slice(0, 20).map(async (notification) => ({
+      notifications.map(async (notification) => ({
         ...notification,
         actor: await ctx.db.get(notification.actorProfileId),
       })),
     );
+    const visibleItems = items.filter((item) => isProfileActive(item.actor));
     return {
-      items,
-      unreadCount: notifications.filter((notification) => !notification.read).length,
+      items: visibleItems.slice(0, 20),
+      unreadCount: visibleItems.filter((notification) => !notification.read).length,
     };
   },
 });

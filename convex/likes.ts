@@ -1,6 +1,7 @@
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
+import { isProfileActive } from "../shared/profileStatus";
 import { getClerkUserId } from "./authHelpers";
 import { currentUsageDay, normalizePlan, planLimits } from "./plans";
 import { createNotification } from "./notificationHelpers";
@@ -13,7 +14,7 @@ async function viewerProfile(ctx: MutationCtx) {
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .unique();
   if (!profile) throw new Error("Complete your profile first.");
-  if (profile.status === "suspended") throw new Error("Your account is currently suspended.");
+  if (!isProfileActive(profile)) throw new Error("Your profile is not available.");
   return profile;
 }
 
@@ -26,7 +27,7 @@ export const summary = query({
       .query("profiles")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
-    if (!profile) return { received: [], sent: [], matches: [] };
+    if (!profile || !isProfileActive(profile)) return { received: [], sent: [], matches: [] };
     const receivedLikes = await ctx.db
       .query("likes")
       .withIndex("by_to", (q) => q.eq("toProfileId", profile._id))
@@ -39,7 +40,7 @@ export const summary = query({
     const sentIds = new Set<Id<"profiles">>(sentLikes.map((like) => like.toProfileId));
     const load = async (ids: Set<Id<"profiles">>) =>
       (await Promise.all([...ids].map((id) => ctx.db.get(id)))).filter(
-        (profile) => profile && profile.status !== "suspended",
+        (profile) => profile && isProfileActive(profile),
       );
     const matches = new Set([...receivedIds].filter((id) => sentIds.has(id)));
     return {
@@ -59,7 +60,8 @@ export const status = query({
       .query("profiles")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
-    if (!profile) return { liked: false, matched: false };
+    if (!profile || !isProfileActive(profile)) return { liked: false, matched: false };
+    if (!isProfileActive(await ctx.db.get(profileId))) return { liked: false, matched: false };
     const sent = await ctx.db
       .query("likes")
       .withIndex("by_pair", (q) => q.eq("fromProfileId", profile._id).eq("toProfileId", profileId))
@@ -78,7 +80,7 @@ export const toggle = mutation({
     const profile = await viewerProfile(ctx);
     if (profile._id === profileId) throw new Error("You cannot like your own profile.");
     const target = await ctx.db.get(profileId);
-    if (!target || target.status === "suspended") throw new Error("This profile is not available.");
+    if (!target || !isProfileActive(target)) throw new Error("This profile is not available.");
     const existing = await ctx.db
       .query("likes")
       .withIndex("by_pair", (q) => q.eq("fromProfileId", profile._id).eq("toProfileId", profileId))
@@ -93,7 +95,7 @@ export const toggle = mutation({
     const limit = planLimits[plan].likesPerDay;
     if (limit !== null && used >= limit)
       throw new Error(
-        `Free includes ${limit} likes per day. New members receive Premium for 14 days.`,
+        `Free includes ${limit} likes per day. New members receive Premium for 30 days.`,
       );
     await ctx.db.insert("likes", { fromProfileId: profile._id, toProfileId: profileId });
     await ctx.db.patch(profile._id, {

@@ -35,7 +35,7 @@ export interface Profile {
   completed: boolean;
   isDemo: boolean;
   email?: string;
-  status?: "active" | "suspended";
+  status?: "active" | "suspended" | "deleted";
   moderationNote?: string;
   plan?: "free" | "premium" | "vip";
   premiumTrialEndsAt?: number;

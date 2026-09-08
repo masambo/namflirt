@@ -10,11 +10,7 @@ import { privateHead } from "@/lib/seo";
 import type { Profile } from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated")({
-  head: () =>
-    privateHead(
-      "namflirt.",
-      "Private profiles, matches, messages and account settings.",
-    ),
+  head: () => privateHead("namflirt.", "Private profiles, matches, messages and account settings."),
   component: AuthGate,
 });
 
@@ -27,7 +23,10 @@ function AuthGate() {
   const viewer = useQuery(api.profiles.viewer, isAuthenticated ? {} : "skip") as
     (Profile & { preferences: unknown }) | null | undefined;
   const onboarding = pathname.startsWith("/onboarding");
-  const needsProfile = isAuthenticated && viewer !== undefined &&
+  const needsProfile =
+    isAuthenticated &&
+    viewer !== undefined &&
+    viewer?.status !== "deleted" &&
     (!viewer || !viewer.completed || !viewer.photos.length);
 
   useEffect(() => {
@@ -45,18 +44,26 @@ function AuthGate() {
     return <AppLoader />;
   }
   if (!isSignedIn || !isAuthenticated || (needsProfile && !onboarding)) return <AppLoader />;
-  if (viewer?.status === "suspended") {
+  if (viewer?.status === "suspended" || viewer?.status === "deleted") {
     return (
       <div className="grid min-h-screen place-items-center px-6 text-center">
         <div className="max-w-md">
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-red-400/10 text-red-300">
             <ShieldAlert className="h-5 w-5" />
           </span>
-          <p className="admin-label mt-5">Account paused</p>
-          <h1 className="mt-2 text-3xl font-semibold">Your account is under review.</h1>
+          <p className="admin-label mt-5">
+            {viewer.status === "deleted" ? "Profile deleted" : "Account paused"}
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold">
+            {viewer.status === "deleted"
+              ? "Your profile has been removed."
+              : "Your account is under review."}
+          </h1>
           <p className="mt-3 text-sm leading-relaxed text-white/45">
-            Your profile and interactions are temporarily unavailable. Contact the namflirt. safety
-            team if you believe this was a mistake.
+            {viewer.status === "deleted"
+              ? "Your profile is no longer visible to other members and you cannot use this account."
+              : "Your profile and interactions are temporarily unavailable."}{" "}
+            Contact the namflirt. safety team if you believe this was a mistake.
           </p>
           <button
             onClick={async () => {

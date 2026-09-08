@@ -34,8 +34,8 @@ function SingleMenNamibia() {
           body: "namflirt. is built around Namibian people and Namibian context, not a one-size-fits-all dating experience copied from somewhere else.",
         },
         {
-          title: "Premium for 14 days",
-          body: "Every new signup receives Premium access for 14 days.",
+          title: "Premium for 30 days",
+          body: "Every new signup receives Premium access for 30 days.",
         },
       ]}
     />

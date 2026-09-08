@@ -1,6 +1,7 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireClerkUserId } from "./authHelpers";
+import { isProfileActive } from "../shared/profileStatus";
 
 export const submit = mutation({
   args: {
@@ -21,7 +22,7 @@ export const submit = mutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
     const reported = await ctx.db.get(profileId);
-    if (!reporter || !reported || reported.status === "suspended") {
+    if (!reporter || !reported || !isProfileActive(reporter) || !isProfileActive(reported)) {
       throw new Error("This profile is not available.");
     }
     if (reporter._id === profileId) throw new Error("You cannot report your own profile.");

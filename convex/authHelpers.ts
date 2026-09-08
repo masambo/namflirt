@@ -39,14 +39,19 @@ export function isConfiguredAdmin(userId?: string, email?: string) {
   );
 }
 
-export async function getAdminIdentity(ctx: AuthContext) {
+export async function getAdminIdentity(ctx: Pick<QueryCtx | MutationCtx, "auth" | "db">) {
   const identity = await ctx.auth.getUserIdentity();
   const email = typeof identity?.email === "string" ? identity.email.toLowerCase() : null;
   if (!identity || !isConfiguredAdmin(identity.subject, email ?? undefined)) return null;
+  const profile = await ctx.db
+    .query("profiles")
+    .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+    .unique();
+  if (profile?.status === "deleted") return null;
   return { userId: identity.subject, email: email ?? identity.subject };
 }
 
-export async function requireAdmin(ctx: AuthContext) {
+export async function requireAdmin(ctx: Pick<QueryCtx | MutationCtx, "auth" | "db">) {
   const admin = await getAdminIdentity(ctx);
   if (!admin) throw new Error("You do not have permission to access this area.");
   return admin;

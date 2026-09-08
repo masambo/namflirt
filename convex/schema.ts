@@ -24,7 +24,7 @@ export default defineSchema({
     verified: v.boolean(),
     completed: v.boolean(),
     isDemo: v.boolean(),
-    status: v.optional(v.union(v.literal("active"), v.literal("suspended"))),
+    status: v.optional(v.union(v.literal("active"), v.literal("suspended"), v.literal("deleted"))),
     moderationNote: v.optional(v.string()),
     plan: v.optional(v.union(v.literal("free"), v.literal("premium"), v.literal("vip"))),
     premiumTrialEndsAt: v.optional(v.number()),

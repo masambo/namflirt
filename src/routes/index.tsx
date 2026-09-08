@@ -333,7 +333,7 @@ function Landing() {
             <div>
               <p className="eyebrow">Plans</p>
               <h2 className="mt-5 max-w-3xl text-5xl font-semibold leading-[.95] tracking-[-.065em] md:text-7xl">
-                Start with 14 days of Premium.
+                Start with 30 days of Premium.
               </h2>
             </div>
             <Link to="/plans" className="button-ghost self-start md:self-auto">

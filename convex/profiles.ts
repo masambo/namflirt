@@ -3,8 +3,9 @@ import { v } from "convex/values";
 import { getClerkUserId, isConfiguredAdmin, requireClerkUserId } from "./authHelpers";
 import { currentUsageDay, currentUsageMonth, normalizePlan, planLimits } from "./plans";
 import { COUNTRY_CODES, matchesDiscovery } from "../shared/discovery";
+import { isProfileActive } from "../shared/profileStatus";
 
-const PREMIUM_TRIAL_MS = 14 * 24 * 60 * 60 * 1000;
+const PREMIUM_TRIAL_MS = 30 * 24 * 60 * 60 * 1000;
 
 const demoProfiles = [
   {
@@ -136,7 +137,13 @@ const demoProfiles = [
 ] as const;
 
 async function requireUser(ctx: MutationCtx) {
-  return requireClerkUserId(ctx);
+  const userId = await requireClerkUserId(ctx);
+  const profile = await ctx.db
+    .query("profiles")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .unique();
+  if (profile && !isProfileActive(profile)) throw new Error("Your profile is not available.");
+  return userId;
 }
 
 function withPlanDefaults<
@@ -196,6 +203,7 @@ export const ensureViewer = mutation({
       .unique();
 
     if (existing) {
+      if (existing.status === "deleted") return existing._id;
       await ctx.db.patch(existing._id, {
         email: identity.email,
         lastActive: Date.now(),
@@ -287,9 +295,13 @@ export const list = query({
       preferences,
       profiles: profiles.filter(
         (profile) =>
-          Boolean(viewer && matchesDiscovery(viewer, preferences, profile, discoveryScope)) &&
+          Boolean(
+            viewer &&
+            isProfileActive(viewer) &&
+            matchesDiscovery(viewer, preferences, profile, discoveryScope),
+          ) &&
           profile._id !== viewer?._id &&
-          profile.status !== "suspended" &&
+          isProfileActive(profile) &&
           !isAdminProfile(profile) &&
           !matchedProfileIds.has(profile._id),
       ),
@@ -302,11 +314,16 @@ export const get = query({
   handler: async (ctx, { profileId }) => {
     const viewerUserId = await getClerkUserId(ctx);
     if (!viewerUserId) throw new Error("You need to sign in first.");
+    const viewer = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", (q) => q.eq("userId", viewerUserId))
+      .unique();
+    if (!isProfileActive(viewer)) return null;
     const profile = await ctx.db.get(profileId);
     const viewerIsAdmin = isConfiguredAdmin(viewerUserId);
     if (
       !profile ||
-      profile.status === "suspended" ||
+      !isProfileActive(profile) ||
       (isAdminProfile(profile) && profile.userId !== viewerUserId && !viewerIsAdmin)
     )
       return null;
@@ -457,7 +474,7 @@ export const generateUploadUrl = mutation({
 export const choosePlan = mutation({
   args: { plan: v.union(v.literal("free"), v.literal("premium"), v.literal("vip")) },
   handler: async () => {
-    throw new Error("New members receive Premium for 14 days.");
+    throw new Error("New members receive Premium for 30 days.");
   },
 });
 
@@ -471,7 +488,7 @@ export const viewProfile = mutation({
       .unique();
     if (!viewer) return { status: "profile_required" as const };
     const profile = await ctx.db.get(profileId);
-    if (!profile || !profile.completed || profile.status === "suspended")
+    if (!profile || !profile.completed || !isProfileActive(profile))
       return { status: "not_found" as const };
     if (viewer._id === profileId) {
       return { status: "ready" as const, profile: withPlanDefaults(profile) };

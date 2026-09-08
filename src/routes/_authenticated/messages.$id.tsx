@@ -69,7 +69,7 @@ function ConversationView() {
       setText(body);
       if (result.status === "plan_limit") {
         toast.info("Monthly message limit reached", {
-          description: "New members receive Premium access for 14 days.",
+          description: "New members receive Premium access for 30 days.",
         });
         return;
       }
