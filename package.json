@@ -10,9 +10,10 @@
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy --cmd \"npm run build\"",
     "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "verify": "npm run lint && npm run check && npm run build"
+    "verify": "npm run lint && npm run check && npm run test && npm run build"
   },
   "dependencies": {
     "@clerk/react": "^6.12.2",

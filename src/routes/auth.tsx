@@ -18,6 +18,9 @@ export const Route = createFileRoute("/auth")({
 });
 
 const clerkAppearance = {
+  layout: {
+    socialButtonsVariant: "blockButton",
+  },
   variables: {
     colorPrimary: "#ff4f87",
     colorBackground: "#141412",
@@ -34,10 +37,14 @@ const clerkAppearance = {
     cardBox: "w-full shadow-none",
     card: "w-full border-0 bg-transparent p-0 shadow-none",
     header: "hidden",
-    socialButtons: "grid grid-cols-2 gap-2",
+    socialButtons: "grid grid-cols-1 gap-3",
+    socialButtonsBlockButton__apple: { display: "none" },
+    socialButtonsIconButton__apple: { display: "none" },
+    alternativeMethodsBlockButton__apple: { display: "none" },
     socialButtonsBlockButton:
       "h-10 rounded-lg border border-white/10 bg-white/[.04] text-white shadow-none transition-colors hover:border-white/18 hover:bg-white/[.07]",
     socialButtonsBlockButtonText: "text-xs font-semibold text-white/85",
+    lastAuthenticationStrategyBadge: "namflirt-last-used-badge",
     dividerRow: "my-4",
     dividerLine: "bg-white/12",
     dividerText: "px-3 text-[10px] font-semibold uppercase text-white/35",

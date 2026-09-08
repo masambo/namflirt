@@ -482,9 +482,28 @@
   .auth-page .cl-socialButtonsBlockButtonText {
     color: rgba(255, 255, 255, 0.85) !important;
   }
-  .auth-page .cl-providerIcon__apple {
-    filter: brightness(0) invert(1) !important;
-    opacity: 0.9 !important;
+  .auth-page .cl-socialButtonsBlockButton__apple,
+  .auth-page .cl-socialButtonsIconButton__apple,
+  .auth-page .cl-alternativeMethodsBlockButton__apple {
+    display: none !important;
+  }
+  .auth-page .cl-lastAuthenticationStrategyBadge,
+  .auth-page .namflirt-last-used-badge {
+    border: 1px solid #ff4f87 !important;
+    border-radius: 999px !important;
+    background: #ff4f87 !important;
+    color: #10100e !important;
+    padding: 0.2rem 0.5rem !important;
+    font-size: 0.6875rem !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+    white-space: nowrap !important;
+    opacity: 1 !important;
+  }
+  .auth-page .cl-lastAuthenticationStrategyBadge *,
+  .auth-page .namflirt-last-used-badge * {
+    color: inherit !important;
+    opacity: 1 !important;
   }
   .auth-page .cl-form {
     gap: 0.9rem !important;

@@ -17,6 +17,9 @@ import {
   TRIBES,
 } from "@/lib/constants";
 import type { Preferences, Profile } from "@/lib/types";
+import { LocationFields } from "@/components/LocationFields";
+import { DiscoveryScopeField } from "@/components/DiscoveryScopeField";
+import type { DiscoveryScope } from "../../../shared/discovery";
 
 export const Route = createFileRoute("/_authenticated/edit-profile")({ component: EditProfile });
 
@@ -25,6 +28,7 @@ type EditState = {
   dateOfBirth: string;
   gender: string;
   bio: string;
+  country: string;
   region: string;
   town: string;
   tribe: string;
@@ -36,6 +40,7 @@ type EditState = {
   education: string;
   occupation: string;
   preferredGender: string;
+  discoveryScope: DiscoveryScope;
   minAge: number;
   maxAge: number;
   preferredRegions: string[];
@@ -65,7 +70,8 @@ function EditProfile() {
       dateOfBirth: viewer.dateOfBirth ?? "",
       gender: viewer.gender ?? "",
       bio: viewer.bio ?? "",
-      region: viewer.region ?? "Khomas",
+      country: viewer.country ?? "NA",
+      region: viewer.region ?? ((viewer.country ?? "NA") === "NA" ? "Khomas" : ""),
       town: viewer.town ?? "",
       tribe: viewer.tribe ?? "",
       languages: viewer.languages,
@@ -76,6 +82,7 @@ function EditProfile() {
       education: viewer.education ?? "",
       occupation: viewer.occupation ?? "",
       preferredGender: viewer.preferences?.preferredGender ?? "",
+      discoveryScope: viewer.preferences?.discoveryScope ?? "local",
       minAge: viewer.preferences?.minAge ?? 22,
       maxAge: viewer.preferences?.maxAge ?? 40,
       preferredRegions: viewer.preferences?.preferredRegions ?? [],
@@ -260,13 +267,8 @@ function EditProfile() {
           copy="Help people understand your place, language, and background."
         >
           <div className="grid gap-5 sm:grid-cols-2">
-            <SelectField
-              label="Region"
-              value={form.region}
-              options={REGIONS}
-              onChange={(region) => patch({ region })}
-            />
-            <Field label="Town" value={form.town} onChange={(town) => patch({ town })} />
+            <LocationFields country={form.country} region={form.region} onChange={patch} />
+            <Field label="Town / city" value={form.town} onChange={(town) => patch({ town })} />
             <SelectField
               label="Cultural background"
               value={form.tribe}
@@ -324,7 +326,7 @@ function EditProfile() {
         </EditorSection>
         <EditorSection
           title="Who you want to meet"
-          copy="These preferences improve discovery without changing your public profile."
+          copy="Discovery only shows the gender you choose, in your country or worldwide."
         >
           <div className="space-y-6">
             <Choice
@@ -349,14 +351,20 @@ function EditProfile() {
                 onChange={(value) => patch({ maxAge: Number(value) })}
               />
             </div>
-            <Choice
-              label="Preferred regions"
-              options={REGIONS}
-              values={form.preferredRegions}
-              onToggle={(value) =>
-                patch({ preferredRegions: toggle(form.preferredRegions, value) })
-              }
+            <DiscoveryScopeField
+              value={form.discoveryScope}
+              onChange={(discoveryScope) => patch({ discoveryScope })}
             />
+            {form.country === "NA" ? (
+              <Choice
+                label="Preferred regions in Namibia"
+                options={REGIONS}
+                values={form.preferredRegions}
+                onToggle={(value) =>
+                  patch({ preferredRegions: toggle(form.preferredRegions, value) })
+                }
+              />
+            ) : null}
             <label className="flex items-center justify-between rounded-2xl border border-white/10 p-4">
               <span className="text-sm font-semibold">Open to long distance</span>
               <input

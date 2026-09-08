@@ -7,6 +7,9 @@ import { calcAge, LANGUAGES, REGIONS } from "@/lib/constants";
 import { calcMatch } from "@/lib/match";
 import type { Preferences, Profile } from "@/lib/types";
 import { Brand } from "@/components/Brand";
+import { DiscoveryScopeField } from "@/components/DiscoveryScopeField";
+import { COUNTRIES, countryName, formatLocation } from "@/lib/location";
+import { matchesDiscovery, profileCountry, type DiscoveryScope } from "../../../shared/discovery";
 
 export const Route = createFileRoute("/_authenticated/browse")({ component: Browse });
 
@@ -22,17 +25,30 @@ const fallbackPreferences: Preferences = {
 };
 
 function Browse() {
-  const data = useQuery(api.profiles.list, {}) as
+  const [discoveryScope, setDiscoveryScope] = useState<DiscoveryScope>();
+  const data = useQuery(api.profiles.list, discoveryScope ? { discoveryScope } : {}) as
     { viewer: Profile | null; preferences: Preferences | null; profiles: Profile[] } | undefined;
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [country, setCountry] = useState("");
   const [region, setRegion] = useState("");
   const [language, setLanguage] = useState("");
+  const scope = discoveryScope ?? data?.preferences?.discoveryScope ?? "local";
+  const homeCountry = profileCountry(data?.viewer ?? {});
+  const selectedCountry = scope === "local" ? homeCountry : country;
+
+  function changeScope(value: DiscoveryScope) {
+    setDiscoveryScope(value);
+    setCountry("");
+    setRegion("");
+  }
 
   const ranked = useMemo(() => {
     if (!data?.viewer) return [];
     return data.profiles
       .filter(
         (profile) =>
+          matchesDiscovery(data.viewer!, data.preferences, profile, scope) &&
+          (!selectedCountry || profileCountry(profile) === selectedCountry) &&
           (!region || profile.region === region) &&
           (!language || profile.languages.includes(language)),
       )
@@ -41,7 +57,7 @@ function Browse() {
         match: calcMatch(data.viewer!, data.preferences ?? fallbackPreferences, profile),
       }))
       .sort((a, b) => b.match.score - a.match.score);
-  }, [data, language, region]);
+  }, [data, language, region, scope, selectedCountry]);
 
   const spotlight = ranked[0];
   return (
@@ -52,7 +68,10 @@ function Browse() {
         </div>
         <div className="flex items-center gap-2">
           <span className="hidden rounded-full border border-white/8 px-4 py-2 text-xs text-white/40 sm:inline-flex">
-            <span className="status-dot mr-2" /> Live in Namibia
+            <span className="status-dot mr-2" />{" "}
+            {scope === "international"
+              ? "International connections"
+              : `Discover ${countryName(homeCountry)}`}
           </span>
           <button
             onClick={() => setFiltersOpen(true)}
@@ -72,6 +91,24 @@ function Browse() {
         <p className="max-w-xs text-sm leading-relaxed text-white/40">
           People ranked by what you share — never by who paid to be seen.
         </p>
+      </div>
+
+      <div className="mb-7 max-w-lg">
+        <DiscoveryScopeField value={scope} onChange={changeScope} />
+        {data?.preferences?.preferredGender ? (
+          <p className="mt-3 text-xs text-white/45">
+            Showing{" "}
+            {data.preferences.preferredGender === "female"
+              ? "women"
+              : data.preferences.preferredGender === "male"
+                ? "men"
+                : "people matching your gender preference"}
+            .{" "}
+            <Link to="/edit-profile" className="text-primary underline">
+              Edit preferences
+            </Link>
+          </p>
+        ) : null}
       </div>
 
       {!data ? (
@@ -112,6 +149,13 @@ function Browse() {
 
       {filtersOpen ? (
         <FilterPanel
+          country={country}
+          scope={scope}
+          showRegions={selectedCountry === "NA"}
+          setCountry={(value) => {
+            setCountry(value);
+            setRegion("");
+          }}
           region={region}
           language={language}
           setRegion={setRegion}
@@ -152,7 +196,7 @@ function SpotlightCard({ profile, score }: { profile: Profile; score: number }) 
           {profile.verified ? <BadgeCheck className="h-6 w-6 fill-primary text-black" /> : null}
         </div>
         <p className="mt-2 flex items-center gap-1.5 text-sm text-white/60">
-          <MapPin className="h-4 w-4" /> {profile.town ?? profile.region ?? "Namibia"}
+          <MapPin className="h-4 w-4" /> {formatLocation(profile)}
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
           {profile.languages.slice(0, 2).map((value) => (
@@ -195,19 +239,27 @@ function MiniCard({ profile, score }: { profile: Profile; score: number }) {
         <h3 className="text-xl font-semibold leading-none tracking-[-.045em]">
           {profile.displayName}, {calcAge(profile.dateOfBirth)}
         </h3>
-        <p className="mt-1.5 text-[11px] text-white/55">{profile.town ?? profile.region}</p>
+        <p className="mt-1.5 text-[11px] text-white/55">{formatLocation(profile)}</p>
       </div>
     </Link>
   );
 }
 
 function FilterPanel({
+  country,
+  scope,
+  showRegions,
+  setCountry,
   region,
   language,
   setRegion,
   setLanguage,
   onClose,
 }: {
+  country: string;
+  scope: DiscoveryScope;
+  showRegions: boolean;
+  setCountry: (value: string) => void;
   region: string;
   language: string;
   setRegion: (value: string) => void;
@@ -228,18 +280,43 @@ function FilterPanel({
             <p className="eyebrow">Refine your view</p>
             <h2 className="mt-2 text-3xl font-semibold tracking-[-.05em]">Filters</h2>
           </div>
-          <button onClick={onClose} className="icon-button">
+          <button onClick={onClose} className="icon-button" aria-label="Close filters">
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="mt-7 space-y-5">
-          <Select label="Region" value={region} options={REGIONS} onChange={setRegion} />
+          {scope === "international" ? (
+            <label className="block">
+              <span className="field-label">Country</span>
+              <select
+                className="field-input mt-2"
+                value={country}
+                onChange={(event) => setCountry(event.target.value)}
+              >
+                <option value="">All countries</option>
+                {COUNTRIES.map(({ code, name }) => (
+                  <option key={code} value={code}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {showRegions ? (
+            <Select
+              label="Region in Namibia"
+              value={region}
+              options={REGIONS}
+              onChange={setRegion}
+            />
+          ) : null}
           <Select label="Language" value={language} options={LANGUAGES} onChange={setLanguage} />
         </div>
         <div className="mt-7 grid grid-cols-2 gap-3">
           <button
             className="button-ghost justify-center"
             onClick={() => {
+              setCountry("");
               setRegion("");
               setLanguage("");
             }}
@@ -299,7 +376,12 @@ function EmptyState() {
     <div className="rounded-[2rem] border border-white/8 bg-white/[.025] py-24 text-center">
       <Heart className="mx-auto h-6 w-6 text-primary" />
       <h2 className="mt-5 text-3xl font-semibold tracking-[-.05em]">No one here yet.</h2>
-      <p className="mt-2 text-sm text-white/40">Try clearing your filters.</p>
+      <p className="mt-2 text-sm text-white/40">
+        Try International or clear your location and language filters.
+      </p>
+      <Link to="/edit-profile" className="mt-4 inline-block text-sm text-primary underline">
+        Edit who you want to meet
+      </Link>
     </div>
   );
 }

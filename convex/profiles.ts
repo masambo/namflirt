@@ -2,6 +2,7 @@ import { mutation, query, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { getClerkUserId, isConfiguredAdmin, requireClerkUserId } from "./authHelpers";
 import { currentUsageDay, currentUsageMonth, normalizePlan, planLimits } from "./plans";
+import { COUNTRY_CODES, matchesDiscovery } from "../shared/discovery";
 
 const PREMIUM_TRIAL_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -243,8 +244,8 @@ export const touchActive = mutation({
 });
 
 export const list = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { discoveryScope: v.optional(v.union(v.literal("local"), v.literal("international"))) },
+  handler: async (ctx, { discoveryScope }) => {
     const userId = await getClerkUserId(ctx);
     if (!userId) throw new Error("You need to sign in first.");
     const viewer = userId
@@ -286,6 +287,7 @@ export const list = query({
       preferences,
       profiles: profiles.filter(
         (profile) =>
+          Boolean(viewer && matchesDiscovery(viewer, preferences, profile, discoveryScope)) &&
           profile._id !== viewer?._id &&
           profile.status !== "suspended" &&
           !isAdminProfile(profile) &&
@@ -318,6 +320,7 @@ export const save = mutation({
     dateOfBirth: v.string(),
     gender: v.string(),
     bio: v.string(),
+    country: v.optional(v.string()),
     region: v.string(),
     town: v.string(),
     tribe: v.string(),
@@ -329,6 +332,7 @@ export const save = mutation({
     education: v.string(),
     occupation: v.string(),
     preferredGender: v.string(),
+    discoveryScope: v.optional(v.union(v.literal("local"), v.literal("international"))),
     minAge: v.number(),
     maxAge: v.number(),
     preferredRegions: v.array(v.string()),
@@ -341,6 +345,11 @@ export const save = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
+    const existing = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    const country = args.country ?? existing?.country ?? "NA";
     const age = Math.floor((Date.now() - new Date(args.dateOfBirth).getTime()) / 31_557_600_000);
     if (!Number.isFinite(age) || age < 18)
       throw new Error("NamFlirt is for adults aged 18 and over.");
@@ -348,7 +357,7 @@ export const save = mutation({
       throw new Error("Add a real name and a little more about yourself.");
     if (
       !args.gender ||
-      !args.region ||
+      (country === "NA" && !args.region.trim()) ||
       !args.town.trim() ||
       !args.relationshipGoal ||
       !args.preferredGender
@@ -358,17 +367,14 @@ export const save = mutation({
       throw new Error("Choose at least one language and interest.");
     if (args.minAge < 18 || args.maxAge > 100 || args.minAge > args.maxAge)
       throw new Error("Check your preferred age range.");
-    const existing = await ctx.db
-      .query("profiles")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
     const profile = {
       userId,
       displayName: args.displayName.trim().slice(0, 60),
       dateOfBirth: args.dateOfBirth,
       gender: args.gender,
       bio: args.bio.trim().slice(0, 600),
-      region: args.region,
+      country,
+      region: args.region.trim().slice(0, 80),
       town: args.town.trim().slice(0, 80),
       tribe: args.tribe,
       languages: args.languages,
@@ -391,6 +397,9 @@ export const save = mutation({
       profileViewsUsedThisMonth: existing?.profileViewsUsedThisMonth ?? 0,
       likesUsedToday: existing?.likesUsedToday ?? 0,
     };
+    if (!COUNTRY_CODES.includes(profile.country)) throw new Error("Choose a valid country.");
+    if (!["female", "male", "non_binary", "other"].includes(args.preferredGender))
+      throw new Error("Choose who you would like to meet.");
     const profileId = existing
       ? (await ctx.db.patch(existing._id, profile), existing._id)
       : await ctx.db.insert("profiles", profile);
@@ -400,6 +409,7 @@ export const save = mutation({
       .unique();
     const preferences = {
       userId,
+      discoveryScope: args.discoveryScope ?? pref?.discoveryScope ?? "local",
       preferredGender: args.preferredGender,
       minAge: args.minAge,
       maxAge: args.maxAge,

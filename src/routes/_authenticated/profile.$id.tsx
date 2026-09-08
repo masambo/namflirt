@@ -26,6 +26,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { calcAge } from "@/lib/constants";
+import { formatLocation } from "@/lib/location";
+import { profileCountry } from "../../../shared/discovery";
 import { calcMatch } from "@/lib/match";
 import type { Preferences, Profile } from "@/lib/types";
 
@@ -192,7 +194,7 @@ function ProfileView() {
                 ) : null}
               </div>
               <p className="mt-3 flex items-center gap-1.5 text-sm text-white/60">
-                <MapPin className="h-4 w-4" /> {target.town}, {target.region}
+                <MapPin className="h-4 w-4" /> {formatLocation(target)}
               </p>
               <div className="mt-5 flex gap-3">
                 <button
@@ -237,7 +239,9 @@ function ProfileView() {
                     }
                   />
                 ) : null}
-                {target.region === viewer.region ? (
+                {target.region &&
+                target.region === viewer.region &&
+                profileCountry(target) === profileCountry(viewer) ? (
                   <Reason
                     icon={<MapPin />}
                     text={

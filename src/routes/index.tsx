@@ -181,8 +181,8 @@ function Landing() {
               <span className="text-primary">Namibia.</span>
             </h1>
             <p className="hero-copy mt-8 max-w-xl text-lg leading-relaxed text-white/55 md:text-xl">
-              Meet single women and single men across Namibia on a Namibia-first dating site built
-              around culture, language, place and the kind of connection you actually want.
+              Meet single women and single men in Namibia and around the world. Choose local or
+              international connections, with culture, language and your preferences at the heart.
             </p>
             <div className="hero-actions mt-9 flex flex-wrap items-center gap-3">
               <Link to="/auth" className="button-primary">

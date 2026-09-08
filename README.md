@@ -2,6 +2,18 @@
 
 NamFlirt is a mobile-first dating experience for Namibia, built with React, TanStack Router, Vite, Tailwind CSS and Convex.
 
+## Discovery and international profiles
+
+Discovery only returns profiles matching the member's saved **I'd like to meet** gender preference.
+Members can choose a country during onboarding or in **Edit profile**, and save **My country** or
+**International** as their default discovery scope. International includes all countries; the
+Discover page also offers a temporary scope switch and country filter. Existing profiles without
+a country are treated as Namibian, and existing preferences default to local discovery.
+
+After updating this checkout, run `npm run convex:dev` against your development deployment to sync
+the new optional schema fields and server filtering. The frontend alone cannot update the backend.
+Run `npm test` with Node 22.6 or newer for discovery regression checks.
+
 ## Local setup
 
 ```bash

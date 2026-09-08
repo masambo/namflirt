@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { calcAge } from "@/lib/constants";
+import { formatLocation } from "@/lib/location";
 import type { Profile } from "@/lib/types";
 import { Brand } from "@/components/Brand";
 
@@ -134,7 +135,7 @@ function ConnectionCard({ profile, tab }: { profile: Profile; tab: Tab }) {
             ) : null}
           </div>
           <p className="mt-1.5 flex items-center gap-1.5 text-xs text-white/38">
-            <MapPin className="h-3.5 w-3.5" /> {profile.town ?? profile.region ?? "Namibia"}
+            <MapPin className="h-3.5 w-3.5" /> {formatLocation(profile)}
           </p>
         </div>
 

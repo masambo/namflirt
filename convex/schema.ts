@@ -9,6 +9,7 @@ export default defineSchema({
     dateOfBirth: v.optional(v.string()),
     gender: v.optional(v.string()),
     bio: v.optional(v.string()),
+    country: v.optional(v.string()),
     region: v.optional(v.string()),
     town: v.optional(v.string()),
     tribe: v.optional(v.string()),
@@ -38,6 +39,7 @@ export default defineSchema({
     .index("by_completed", ["completed"]),
   preferences: defineTable({
     userId: v.string(),
+    discoveryScope: v.optional(v.union(v.literal("local"), v.literal("international"))),
     preferredGender: v.optional(v.string()),
     minAge: v.number(),
     maxAge: v.number(),

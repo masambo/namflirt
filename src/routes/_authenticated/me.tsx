@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { calcAge } from "@/lib/constants";
+import { formatLocation } from "@/lib/location";
 import { resolvePlan } from "@/lib/plans";
 import type { Profile } from "@/lib/types";
 import { Brand } from "@/components/Brand";
@@ -61,7 +62,7 @@ function Me() {
               {profile.verified ? <BadgeCheck className="h-6 w-6 fill-primary text-black" /> : null}
             </div>
             <p className="mt-2 flex items-center gap-1.5 text-sm text-white/55">
-              <MapPin className="h-4 w-4" /> {profile.town}, {profile.region}
+              <MapPin className="h-4 w-4" /> {formatLocation(profile)}
             </p>
           </div>
         </section>

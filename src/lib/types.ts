@@ -1,4 +1,5 @@
 export interface Preferences {
+  discoveryScope?: "local" | "international";
   preferredGender?: string;
   minAge: number;
   maxAge: number;
@@ -18,6 +19,7 @@ export interface Profile {
   dateOfBirth?: string;
   gender?: string;
   bio?: string;
+  country?: string;
   region?: string;
   town?: string;
   tribe?: string;
