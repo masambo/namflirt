@@ -26,6 +26,7 @@ import {
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
+import { VerificationQueue } from "@/components/admin/VerificationQueue";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,7 +48,7 @@ import {
 
 export const Route = createFileRoute("/_authenticated/admin")({ component: AdminDashboard });
 
-type AdminTab = "overview" | "members" | "reports";
+type AdminTab = "overview" | "members" | "reports" | "verifications";
 type MemberStatus = "active" | "suspended" | "deleted";
 type MemberPlan = "free" | "premium" | "vip";
 
@@ -103,6 +104,7 @@ const tabs: Array<{ id: AdminTab; label: string; Icon: typeof Activity }> = [
   { id: "overview", label: "Overview", Icon: Activity },
   { id: "members", label: "Members", Icon: UsersRound },
   { id: "reports", label: "Reports", Icon: Flag },
+  { id: "verifications", label: "Verifications", Icon: BadgeCheck },
 ];
 
 function AdminDashboard() {
@@ -150,6 +152,7 @@ function AdminDashboard() {
         {tab === "overview" ? <Overview /> : null}
         {tab === "members" ? <Members /> : null}
         {tab === "reports" ? <Reports /> : null}
+        {tab === "verifications" ? <VerificationQueue /> : null}
       </div>
     </main>
   );

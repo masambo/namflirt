@@ -102,6 +102,17 @@ export default defineSchema({
     .index("by_status", ["status", "createdAt"])
     .index("by_reported", ["reportedProfileId", "createdAt"])
     .index("by_reporter", ["reporterProfileId", "createdAt"]),
+  verificationRequests: defineTable({
+    profileId: v.id("profiles"),
+    selfieStorageId: v.optional(v.id("_storage")),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("declined")),
+    submittedAt: v.number(),
+    reviewedAt: v.optional(v.number()),
+    reviewedBy: v.optional(v.string()),
+    feedback: v.optional(v.string()),
+  })
+    .index("by_profile", ["profileId"])
+    .index("by_status", ["status", "submittedAt"]),
   adminAudit: defineTable({
     adminUserId: v.string(),
     action: v.string(),

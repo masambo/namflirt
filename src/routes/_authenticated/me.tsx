@@ -18,6 +18,7 @@ import { formatLocation } from "@/lib/location";
 import { resolvePlan } from "@/lib/plans";
 import type { Profile } from "@/lib/types";
 import { Brand } from "@/components/Brand";
+import { VerificationCard } from "@/components/VerificationCard";
 
 export const Route = createFileRoute("/_authenticated/me")({ component: Me });
 
@@ -118,6 +119,7 @@ function Me() {
               ))}
             </div>
           </div>
+          <VerificationCard />
           <div className="grid gap-3 sm:grid-cols-2">
             {adminAccess?.isAdmin ? (
               <Link to="/admin" className="settings-row sm:col-span-2">

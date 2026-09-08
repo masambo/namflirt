@@ -24,6 +24,7 @@ const profiles = await import("../convex/profiles.ts");
 const conversations = await import("../convex/conversations.ts");
 const likes = await import("../convex/likes.ts");
 const notifications = await import("../convex/notifications.ts");
+const verification = await import("../convex/verification.ts");
 const { ConvexError } = await import("convex/values");
 const { errorMessage } = await import("../src/lib/errors.ts");
 process.env.ADMIN_USER_IDS = "admin-user";
@@ -133,6 +134,7 @@ function fixture(userId = "admin-user") {
   const tables = {
     profiles: [member, other],
     adminAudit: [],
+    verificationRequests: [],
     reports: [
       {
         _id: "report",
@@ -159,17 +161,21 @@ function fixture(userId = "admin-user") {
       { _id: "notice", recipientProfileId: "other", actorProfileId: "member", read: false },
     ],
   };
+  let insertCount = 0;
   const ctx = {
     auth: { getUserIdentity: async () => ({ subject: userId }) },
     db: {
+      system: { get: async () => ({ contentType: "image/jpeg", size: 1024 }) },
       get: async (id) =>
         Object.values(tables)
           .flat()
           .find((row) => row._id === id) ?? null,
       patch: async (id, values) => Object.assign(await ctx.db.get(id), values),
       insert: async (table, values) => {
-        tables[table].push(values);
-        return "inserted";
+        const id = insertCount === 0 ? "inserted" : `inserted-${insertCount}`;
+        insertCount += 1;
+        tables[table].push({ _id: id, ...values });
+        return id;
       },
       query(table) {
         let rows = [...tables[table]];
@@ -203,6 +209,115 @@ function fixture(userId = "admin-user") {
   };
   return { ctx, tables, member };
 }
+
+test("members can request verification, with no duplicate pending requests or public selfie data", async () => {
+  const { ctx, tables, member } = fixture("member-user");
+  ctx.storage = { getUrl: async () => "private-selfie" };
+  await verification.submit._handler(ctx, { storageId: "selfie" });
+  assert.equal(tables.verificationRequests[0].status, "pending");
+  assert.notEqual(member.verified, true);
+  const status = await verification.status._handler(ctx, {});
+  assert.equal(status.request.status, "pending");
+  assert.equal(status.request.selfieStorageId, undefined);
+  await assert.rejects(
+    verification.submit._handler(ctx, { storageId: "another" }),
+    /awaiting review/,
+  );
+  await assert.rejects(verification.queue._handler(ctx, {}), /permission/);
+  await assert.rejects(
+    verification.review._handler(ctx, { requestId: "inserted", decision: "approved" }),
+    /permission/,
+  );
+});
+
+test("verification rejects invalid uploads and incomplete or unavailable profiles", async () => {
+  const { ctx, member } = fixture("member-user");
+  ctx.storage = { getUrl: async () => "private-selfie" };
+  ctx.db.system.get = async () => ({ contentType: "application/pdf", size: 1024 });
+  await assert.rejects(verification.submit._handler(ctx, { storageId: "file" }), /JPG/);
+  ctx.db.system.get = async () => ({ contentType: "image/jpeg", size: 9_000_000 });
+  await assert.rejects(verification.submit._handler(ctx, { storageId: "file" }), /8 MB/);
+  member.completed = false;
+  await assert.rejects(
+    verification.submit._handler(ctx, { storageId: "file" }),
+    /Complete your profile/,
+  );
+  member.status = "deleted";
+  await assert.rejects(verification.submit._handler(ctx, { storageId: "file" }), /not available/);
+});
+
+test("admin approval awards a badge, deletes the private selfie, and records the review", async () => {
+  const { ctx, tables, member } = fixture("member-user");
+  const deleted = [];
+  ctx.storage = { getUrl: async () => "private-selfie", delete: async (id) => deleted.push(id) };
+  await verification.submit._handler(ctx, { storageId: "selfie" });
+  ctx.auth.getUserIdentity = async () => ({ subject: "admin-user" });
+  assert.equal((await verification.queue._handler(ctx, {})).length, 1);
+  await verification.review._handler(ctx, { requestId: "inserted", decision: "approved" });
+  assert.equal(member.verified, true);
+  assert.equal(tables.verificationRequests[0].status, "approved");
+  assert.equal(tables.verificationRequests[0].selfieStorageId, undefined);
+  assert.deepEqual(deleted, ["selfie"]);
+  assert.equal(tables.adminAudit[0].action, "verification_approved");
+  await assert.rejects(
+    verification.review._handler(ctx, { requestId: "inserted", decision: "approved" }),
+    /already been reviewed/,
+  );
+});
+
+test("declined members receive feedback and can submit again", async () => {
+  const { ctx, tables } = fixture("member-user");
+  ctx.storage = { getUrl: async () => "private-selfie", delete: async () => {} };
+  await verification.submit._handler(ctx, { storageId: "selfie" });
+  ctx.auth.getUserIdentity = async () => ({ subject: "admin-user" });
+  await assert.rejects(
+    verification.review._handler(ctx, { requestId: "inserted", decision: "declined" }),
+    /Explain/,
+  );
+  await verification.review._handler(ctx, {
+    requestId: "inserted",
+    decision: "declined",
+    feedback: "Please use better lighting.",
+  });
+  ctx.auth.getUserIdentity = async () => ({ subject: "member-user" });
+  assert.equal(
+    (await verification.status._handler(ctx, {})).request.feedback,
+    "Please use better lighting.",
+  );
+  await verification.submit._handler(ctx, { storageId: "retry" });
+  assert.equal(tables.verificationRequests.length, 1);
+  assert.equal(tables.verificationRequests[0].status, "pending");
+});
+
+test("admins cannot approve their own verification or approve deleted profiles", async () => {
+  const { ctx, tables, member } = fixture("member-user");
+  ctx.storage = { getUrl: async () => "private-selfie", delete: async () => {} };
+  await verification.submit._handler(ctx, { storageId: "selfie" });
+  member.userId = "admin-user";
+  ctx.auth.getUserIdentity = async () => ({ subject: "admin-user" });
+  await assert.rejects(
+    verification.review._handler(ctx, { requestId: "inserted", decision: "approved" }),
+    /Another admin/,
+  );
+  member.userId = "member-user";
+  member.status = "deleted";
+  await assert.rejects(
+    verification.review._handler(ctx, { requestId: "inserted", decision: "approved" }),
+    /cannot be verified/,
+  );
+  assert.equal(tables.verificationRequests[0].status, "pending");
+});
+
+test("deleting a member also removes their pending verification selfie", async () => {
+  const { ctx, tables } = fixture("member-user");
+  const deleted = [];
+  ctx.storage = { getUrl: async () => "private-selfie", delete: async (id) => deleted.push(id) };
+  await verification.submit._handler(ctx, { storageId: "selfie" });
+  ctx.auth.getUserIdentity = async () => ({ subject: "admin-user" });
+  await admin.deleteProfile._handler(ctx, { profileId: "member" });
+  assert.deepEqual(deleted, ["selfie"]);
+  assert.equal(tables.verificationRequests[0].status, "declined");
+});
 
 const validProfile = {
   displayName: "Member",

@@ -267,6 +267,20 @@ export const deleteProfile = mutation({
     if (profile.userId === admin.userId)
       throw new ConvexError("You cannot delete your own admin profile.");
     if (profile.status === "deleted") return;
+    const verification = await ctx.db
+      .query("verificationRequests")
+      .withIndex("by_profile", (q) => q.eq("profileId", profileId))
+      .unique();
+    if (verification?.status === "pending") {
+      if (verification.selfieStorageId) await ctx.storage.delete(verification.selfieStorageId);
+      await ctx.db.patch(verification._id, {
+        status: "declined",
+        selfieStorageId: undefined,
+        reviewedAt: Date.now(),
+        reviewedBy: admin.userId,
+        feedback: "The profile was removed.",
+      });
+    }
     await ctx.db.patch(profileId, { status: "deleted", completed: false });
     await audit(ctx, admin.userId, "profile_deleted", profileId);
   },

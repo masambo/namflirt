@@ -39,6 +39,10 @@ function Privacy() {
           ],
         },
         {
+          title: "Photo verification",
+          body: "If you request a verified badge, you submit a separate selfie for an admin to compare with your profile photos. This selfie is not added to your public profile. We delete it after approval or decline, or when an admin deletes your profile. We retain the review status and feedback for account support and moderation.",
+        },
+        {
           title: "Your control",
           body: "You can update your profile and account settings in the app. Some information may need to be retained where required for safety, fraud prevention, legal, or operational reasons.",
           items: [

@@ -17,6 +17,7 @@ import type * as notifications from "../notifications.js";
 import type * as plans from "../plans.js";
 import type * as profiles from "../profiles.js";
 import type * as reports from "../reports.js";
+import type * as verification from "../verification.js";
 
 import type {
   ApiFromModules,
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   plans: typeof plans;
   profiles: typeof profiles;
   reports: typeof reports;
+  verification: typeof verification;
 }>;
 
 /**
