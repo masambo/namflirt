@@ -98,9 +98,9 @@ function ConversationView() {
   const other = detail.other;
   const otherOnline = isOnline(other?.lastActive, now);
   return (
-    <div className="flex h-[calc(100vh-8rem)] min-h-[560px] flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#181816] md:h-[calc(100vh-10rem)]">
+    <div className="chat-panel flex min-h-0 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#181816]">
       <header className="flex items-center gap-3 border-b border-white/8 px-4 py-3.5">
-        <Link to="/messages" className="icon-button md:hidden">
+        <Link to="/messages" aria-label="Back to conversations" className="icon-button md:hidden">
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <Link
@@ -128,7 +128,7 @@ function ConversationView() {
           </div>
         </Link>
       </header>
-      <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+      <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-4 py-6 sm:px-6">
         <div className="mx-auto mb-8 max-w-xs text-center">
           <Sparkles className="mx-auto h-4 w-4 text-primary" />
           <p className="mt-3 text-xs leading-relaxed text-white/30">
@@ -141,7 +141,7 @@ function ConversationView() {
             return (
               <div key={message._id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[78%] rounded-[1.35rem] px-4 py-3 text-sm leading-relaxed ${mine ? "rounded-br-md bg-primary text-white" : "rounded-bl-md bg-white/[.07] text-white/80"}`}
+                  className={`max-w-[85%] [overflow-wrap:anywhere] sm:max-w-[78%] rounded-[1.35rem] px-4 py-3 text-sm leading-relaxed ${mine ? "rounded-br-md bg-primary text-white" : "rounded-bl-md bg-white/[.07] text-white/80"}`}
                 >
                   <p>{message.body}</p>
                   <span
@@ -177,7 +177,7 @@ function ConversationView() {
           onChange={(event) => setText(event.target.value)}
           placeholder="Write something real…"
           maxLength={1000}
-          className="field-input flex-1 rounded-full"
+          className="field-input min-w-0 flex-1 rounded-full"
         />
         <button
           type="submit"

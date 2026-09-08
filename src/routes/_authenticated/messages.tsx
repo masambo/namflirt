@@ -40,7 +40,7 @@ function MessagesLayout() {
           {conversations?.length ?? 0} {conversations?.length === 1 ? "chat" : "chats"}
         </span>
       </header>
-      <div className="grid min-h-[calc(100vh-10rem)] gap-4 md:grid-cols-[340px_1fr]">
+      <div className="grid min-h-0 gap-4 md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)]">
         <aside className={detail ? "hidden md:block" : "block"}>
           <p className="eyebrow">Your inbox</p>
           <h1 className="mt-3 text-5xl font-semibold tracking-[-.065em]">Messages</h1>

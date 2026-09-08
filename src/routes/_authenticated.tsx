@@ -80,7 +80,7 @@ function AuthGate() {
   }
 
   return (
-    <div className="min-h-screen pb-24 lg:pb-0 lg:pl-60">
+    <div className="app-shell min-h-dvh lg:pl-60">
       <PresenceHeartbeat />
       <Outlet />
       {onboarding ? null : <BottomNav />}

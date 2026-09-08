@@ -1,14 +1,13 @@
+import { InstallApp } from "@/components/InstallApp";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import {
-  Apple,
   ArrowRight,
   Check,
   Crown,
   HeartHandshake,
   MapPinned,
   MessagesSquare,
-  Play,
   ShieldCheck,
   Star,
   X,
@@ -427,25 +426,8 @@ function Landing() {
 
 function StoreBadges() {
   return (
-    <div className="mt-7 flex flex-wrap gap-3" aria-label="namflirt. mobile apps coming soon">
-      <span className="inline-flex h-14 min-w-40 items-center gap-3 rounded-2xl border border-white/10 bg-white/[.045] px-4 text-left text-white/75">
-        <Apple className="h-6 w-6 shrink-0 text-white" />
-        <span>
-          <span className="block text-[10px] font-black uppercase tracking-[.14em] text-primary">
-            Coming soon
-          </span>
-          <span className="block text-sm font-black">App Store</span>
-        </span>
-      </span>
-      <span className="inline-flex h-14 min-w-40 items-center gap-3 rounded-2xl border border-white/10 bg-white/[.045] px-4 text-left text-white/75">
-        <Play className="h-6 w-6 shrink-0 fill-primary/25 text-white" />
-        <span>
-          <span className="block text-[10px] font-black uppercase tracking-[.14em] text-primary">
-            Coming soon
-          </span>
-          <span className="block text-sm font-black">Play Store</span>
-        </span>
-      </span>
+    <div className="mt-7">
+      <InstallApp />
     </div>
   );
 }

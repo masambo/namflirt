@@ -19,6 +19,7 @@ import { resolvePlan } from "@/lib/plans";
 import type { Profile } from "@/lib/types";
 import { Brand } from "@/components/Brand";
 import { VerificationCard } from "@/components/VerificationCard";
+import { InstallApp } from "@/components/InstallApp";
 
 export const Route = createFileRoute("/_authenticated/me")({ component: Me });
 
@@ -37,6 +38,9 @@ function Me() {
 
   return (
     <main className="app-page page-width max-w-6xl">
+      <div className="pt-4">
+        <InstallApp />
+      </div>
       <header className="flex items-center justify-between py-6 md:py-8">
         <div className="lg:hidden">
           <Brand to="/browse" />

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en-NA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#11110f" />
+    <title>You're offline | namflirt.</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        background: #11110f;
+        color: #f6f5f1;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 26rem;
+        padding: 2rem;
+        text-align: center;
+      }
+      .brand {
+        color: #ff4f87;
+        font-size: 1.5rem;
+        font-weight: 800;
+      }
+      p {
+        color: #aaa9a3;
+      }
+      button {
+        min-height: 48px;
+        padding: 0.8rem 1.5rem;
+        border: 0;
+        border-radius: 99px;
+        background: #ff4f87;
+        color: white;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand">namflirt.</div>
+      <h1>Let's reconnect.</h1>
+      <p>You're offline. Connect to the internet to browse profiles and send messages.</p>
+      <button onclick="window.location.reload()">Try again</button>
+    </main>
+  </body>
+</html>
