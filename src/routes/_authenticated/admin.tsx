@@ -4,7 +4,6 @@ import { useMutation, useQuery } from "convex/react";
 import {
   Activity,
   BadgeCheck,
-  Ban,
   Check,
   ChevronRight,
   CircleAlert,
@@ -13,39 +12,18 @@ import {
   HeartHandshake,
   LoaderCircle,
   MessageCircle,
-  MoreHorizontal,
-  RefreshCcw,
   Search,
   ShieldCheck,
   Sparkles,
   UserRoundCheck,
   UsersRound,
-  Trash2,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
+import { MemberActions } from "@/components/admin/MemberActions";
 import { VerificationQueue } from "@/components/admin/VerificationQueue";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
 export const Route = createFileRoute("/_authenticated/admin")({ component: AdminDashboard });
 
 type AdminTab = "overview" | "members" | "reports" | "verifications";
@@ -239,7 +217,7 @@ function Overview() {
 
       <section className="admin-panel overflow-hidden">
         <SectionHeader label="Member activity" title="Recently joined" />
-        <MemberTable members={overview.recentMembers} compact />
+        <MemberTable members={overview.recentMembers} />
       </section>
     </div>
   );
@@ -392,7 +370,7 @@ function Reports() {
   );
 }
 
-function MemberTable({ members, compact = false }: { members: AdminMember[]; compact?: boolean }) {
+function MemberTable({ members }: { members: AdminMember[] }) {
   return (
     <>
       <div className="hidden overflow-x-auto md:block">
@@ -404,7 +382,7 @@ function MemberTable({ members, compact = false }: { members: AdminMember[]; com
               <th className="px-4 py-3">Plan</th>
               <th className="px-4 py-3">Last active</th>
               <th className="px-4 py-3">Reports</th>
-              {compact ? null : <th className="px-5 py-3 text-right">Actions</th>}
+              <th className="px-5 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/8">
@@ -423,11 +401,9 @@ function MemberTable({ members, compact = false }: { members: AdminMember[]; com
                   {relativeTime(member.lastActive)}
                 </td>
                 <td className="px-4 py-3.5 text-xs text-white/45">{member.reportCount || "—"}</td>
-                {compact ? null : (
-                  <td className="px-5 py-3.5 text-right">
-                    <MemberActions member={member} />
-                  </td>
-                )}
+                <td className="px-5 py-3.5 text-right">
+                  <MemberActions member={member} />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -438,7 +414,7 @@ function MemberTable({ members, compact = false }: { members: AdminMember[]; com
           <div key={member._id} className="p-4">
             <div className="flex items-start justify-between gap-3">
               <MemberIdentity member={member} />
-              {compact ? <StatusBadge status={member.status} /> : <MemberActions member={member} />}
+              <MemberActions member={member} />
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/35">
               <StatusBadge status={member.status} />
@@ -451,189 +427,6 @@ function MemberTable({ members, compact = false }: { members: AdminMember[]; com
           </div>
         ))}
       </div>
-    </>
-  );
-}
-
-function MemberActions({ member }: { member: AdminMember }) {
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const deleteProfile = useMutation(api.admin.deleteProfile);
-  const setStatus = useMutation(api.admin.setMemberStatus);
-  const setVerified = useMutation(api.admin.setVerified);
-  const setPlan = useMutation(api.admin.setPlan);
-
-  async function removeProfile() {
-    setDeleting(true);
-    try {
-      await deleteProfile({ profileId: member._id });
-      toast.success("Profile deleted", {
-        description: "The member is no longer visible and cannot access the app.",
-      });
-      setDeleteOpen(false);
-    } catch (error) {
-      toast.error("Profile not deleted", {
-        description: errorMessage(error),
-      });
-    } finally {
-      setDeleting(false);
-    }
-  }
-
-  async function updateStatus() {
-    const next = member.status === "suspended" ? "active" : "suspended";
-    try {
-      await setStatus({ profileId: member._id, status: next });
-      toast.success(next === "active" ? "Member restored." : "Member suspended.");
-    } catch (error) {
-      toast.error("Member not updated", { description: errorMessage(error) });
-    }
-  }
-
-  async function verify() {
-    try {
-      await setVerified({ profileId: member._id, verified: !member.verified });
-      toast.success(member.verified ? "Verification removed." : "Member verified.");
-    } catch (error) {
-      toast.error("Verification not updated", { description: errorMessage(error) });
-    }
-  }
-
-  async function changePlan(next: MemberPlan) {
-    try {
-      await setPlan({ profileId: member._id, plan: next });
-      toast.success(`Plan changed to ${next}.`);
-    } catch (error) {
-      toast.error("Plan not updated", { description: errorMessage(error) });
-    }
-  }
-
-  if (member.status === "deleted") return <span className="text-xs text-white/40">Deleted</span>;
-
-  return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="admin-icon-button" aria-label={`Manage ${member.displayName}`}>
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52 border-white/10 bg-[#1b1b19] text-white">
-          <DropdownMenuLabel className="text-[10px] uppercase text-white/35">
-            Member actions
-          </DropdownMenuLabel>
-          <DropdownMenuItem
-            onSelect={() => void verify()}
-            className="focus:bg-white/8 focus:text-white"
-          >
-            <BadgeCheck className="mr-2 h-4 w-4" />
-            {member.verified ? "Remove verification" : "Verify member"}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator className="bg-white/8" />
-          <DropdownMenuLabel className="text-[10px] uppercase text-white/35">
-            Change plan
-          </DropdownMenuLabel>
-          {(["free", "premium", "vip"] as const).map((item) => (
-            <DropdownMenuItem
-              key={item}
-              disabled={member.plan === item}
-              onSelect={() => void changePlan(item)}
-              className="capitalize focus:bg-white/8 focus:text-white"
-            >
-              <Crown className="mr-2 h-4 w-4" />
-              {item}
-            </DropdownMenuItem>
-          ))}
-          <DropdownMenuSeparator className="bg-white/8" />
-          <DropdownMenuItem
-            onSelect={() => setConfirmOpen(true)}
-            className={
-              member.status === "suspended"
-                ? "text-emerald-300 focus:bg-emerald-400/10 focus:text-emerald-200"
-                : "text-red-300 focus:bg-red-400/10 focus:text-red-200"
-            }
-          >
-            {member.status === "suspended" ? (
-              <RefreshCcw className="mr-2 h-4 w-4" />
-            ) : (
-              <Ban className="mr-2 h-4 w-4" />
-            )}
-            {member.status === "suspended" ? "Restore member" : "Suspend member"}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator className="bg-white/8" />
-          <DropdownMenuItem
-            onSelect={() => setDeleteOpen(true)}
-            className="text-red-300 focus:bg-red-400/10 focus:text-red-200"
-          >
-            <Trash2 className="mr-2 h-4 w-4" /> Delete profile
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <AlertDialog
-        open={deleteOpen}
-        onOpenChange={(open) => {
-          if (!deleting) setDeleteOpen(open);
-        }}
-      >
-        <AlertDialogContent className="border-white/10 bg-[#191917] text-white sm:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {member.displayName}'s profile?</AlertDialogTitle>
-            <AlertDialogDescription className="text-white/45">
-              This removes the profile from browsing, likes, matches, notifications, and
-              conversations. The member will lose access and cannot restore the profile by signing
-              in again. Moderation records are retained. This action cannot be undone here.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              disabled={deleting}
-              className="border-white/10 bg-transparent text-white"
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={deleting}
-              onClick={(event) => {
-                event.preventDefault();
-                void removeProfile();
-              }}
-              className="bg-red-500 text-white hover:bg-red-400"
-            >
-              {deleting ? "Deleting…" : "Delete profile"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent className="border-white/10 bg-[#191917] text-white sm:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {member.status === "suspended" ? "Restore this member?" : "Suspend this member?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-white/45">
-              {member.status === "suspended"
-                ? `${member.displayName} will regain access to the app.`
-                : `${member.displayName} will be removed from discovery and unable to interact until restored.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 bg-transparent text-white hover:bg-white/5 hover:text-white">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => void updateStatus()}
-              className={
-                member.status === "suspended"
-                  ? "bg-emerald-500 text-black hover:bg-emerald-400"
-                  : "bg-red-500 text-white hover:bg-red-400"
-              }
-            >
-              {member.status === "suspended" ? "Restore member" : "Suspend member"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }
