@@ -175,7 +175,7 @@ function EditProfile() {
       </header>
       <div className="mb-8">
         <p className="eyebrow">Your profile</p>
-        <h1 className="mt-3 text-5xl font-semibold tracking-[-.06em]">
+        <h1 className="mt-3 text-[clamp(2.25rem,10vw,3rem)] font-semibold tracking-[-.06em] sm:text-5xl">
           Edit without starting over.
         </h1>
         <p className="mt-3 text-sm text-white/40">

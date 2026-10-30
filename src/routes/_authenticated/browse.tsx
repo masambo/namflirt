@@ -85,7 +85,9 @@ function Browse() {
       <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="eyebrow">Made for you</p>
-          <h1 className="mt-3 text-5xl font-semibold tracking-[-.065em] md:text-7xl">Discover</h1>
+          <h1 className="mt-3 text-[clamp(2.5rem,12vw,3.5rem)] font-semibold tracking-[-.065em] md:text-7xl">
+            Discover
+          </h1>
         </div>
         <p className="max-w-xs text-sm leading-relaxed text-white/40">
           People ranked by what you share — never by who paid to be seen.
@@ -169,7 +171,7 @@ function SpotlightCard({ profile, score }: { profile: Profile; score: number }) 
     <Link
       to="/profile/$id"
       params={{ id: profile._id }}
-      className="group relative min-h-[600px] overflow-hidden rounded-[2.4rem] border border-white/10 bg-[#1b1b18] sm:min-h-[690px]"
+      className="group relative min-h-[68dvh] overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#1b1b18] sm:min-h-[690px] sm:rounded-[2.4rem]"
     >
       {profile.photos[0] ? (
         <img
@@ -187,7 +189,7 @@ function SpotlightCard({ profile, score }: { profile: Profile; score: number }) 
           {score}% compatible
         </div>
         <div className="flex items-center gap-2">
-          <h2 className="text-4xl font-semibold tracking-[-.06em] sm:text-6xl">
+          <h2 className="break-words text-3xl font-semibold tracking-[-.06em] sm:text-6xl">
             {profile.displayName}, {calcAge(profile.dateOfBirth)}
           </h2>
           {profile.verified ? <BadgeCheck className="h-6 w-6 fill-primary text-black" /> : null}
@@ -218,7 +220,7 @@ function MiniCard({ profile, score }: { profile: Profile; score: number }) {
     <Link
       to="/profile/$id"
       params={{ id: profile._id }}
-      className="group relative aspect-[.78] overflow-hidden rounded-[1.65rem] border border-white/10 bg-[#1b1b18]"
+      className="group relative aspect-[.78] min-w-0 overflow-hidden rounded-[1.25rem] border border-white/10 bg-[#1b1b18] sm:rounded-[1.65rem]"
     >
       {profile.photos[0] ? (
         <img
@@ -233,7 +235,7 @@ function MiniCard({ profile, score }: { profile: Profile; score: number }) {
         {score}%
       </span>
       <div className="absolute inset-x-0 bottom-0 p-4">
-        <h3 className="text-xl font-semibold leading-none tracking-[-.045em]">
+        <h3 className="truncate text-base font-semibold leading-tight tracking-[-.045em] sm:text-xl sm:leading-none">
           {profile.displayName}, {calcAge(profile.dateOfBirth)}
         </h3>
         <p className="mt-1.5 text-[11px] text-white/55">{formatLocation(profile)}</p>
@@ -377,7 +379,7 @@ function Select({
 function BrowseSkeleton() {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <div className="min-h-[650px] animate-pulse rounded-[2.4rem] bg-white/5" />
+      <div className="min-h-[68dvh] animate-pulse rounded-[1.5rem] bg-white/5 sm:min-h-[690px] sm:rounded-[2.4rem]" />
       <div className="grid grid-cols-2 gap-3">
         {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="aspect-[.78] animate-pulse rounded-[1.65rem] bg-white/5" />

@@ -63,7 +63,7 @@ function Me() {
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/15" />
           <div className="absolute inset-x-0 bottom-0 p-5 sm:p-7">
             <div className="flex items-center gap-2">
-              <h1 className="min-w-0 break-words text-4xl font-semibold tracking-[-.065em] sm:text-5xl">
+              <h1 className="min-w-0 break-words text-[clamp(2rem,9vw,2.75rem)] font-semibold tracking-[-.065em] sm:text-5xl">
                 {profile.displayName}, {calcAge(profile.dateOfBirth)}
               </h1>
               {profile.verified ? <BadgeCheck className="h-6 w-6 fill-primary text-black" /> : null}
@@ -74,7 +74,7 @@ function Me() {
           </div>
         </section>
         <section className="space-y-4 pb-20">
-          <div className="rounded-[2rem] border border-white/8 bg-[#191917] p-7">
+          <div className="rounded-2xl border border-white/8 bg-[#191917] p-5 sm:rounded-[2rem] sm:p-7">
             <div className="flex items-center justify-between gap-3">
               <p className="eyebrow">Your profile</p>
               <Link
@@ -84,7 +84,7 @@ function Me() {
                 <Crown className="h-3.5 w-3.5 text-primary" /> {plan.name}
               </Link>
             </div>
-            <h2 className="mt-4 text-4xl font-semibold tracking-[-.055em]">
+            <h2 className="mt-4 break-words text-[clamp(1.75rem,8vw,2.25rem)] font-semibold tracking-[-.055em] sm:text-4xl">
               Looking good, {profile.displayName.split(" ")[0]}.
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-white/40">
@@ -114,7 +114,7 @@ function Me() {
               <Stat value={profile.hobbies.length} label="Interests" />
             </div>
           </div>
-          <div className="rounded-[2rem] border border-white/8 bg-[#191917] p-7">
+          <div className="rounded-2xl border border-white/8 bg-[#191917] p-5 sm:rounded-[2rem] sm:p-7">
             <p className="eyebrow">About you</p>
             <p className="mt-4 text-xl leading-relaxed text-white/75">{profile.bio}</p>
             <div className="mt-6 flex flex-wrap gap-2">
@@ -179,7 +179,7 @@ function Me() {
 function Stat({ value, label }: { value: number; label: string }) {
   return (
     <div className="rounded-2xl bg-white/[.035] p-4 text-center">
-      <p className="text-3xl font-semibold tracking-[-.05em]">{value}</p>
+      <p className="text-2xl font-semibold tracking-[-.05em] sm:text-3xl">{value}</p>
       <p className="mt-1 text-[10px] font-semibold uppercase tracking-[.14em] text-white/25">
         {label}
       </p>

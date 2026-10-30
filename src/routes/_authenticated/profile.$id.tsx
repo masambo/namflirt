@@ -186,7 +186,7 @@ function ProfileView() {
             </span>
             <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
               <div className="flex items-center gap-2">
-                <h1 className="min-w-0 break-words text-4xl font-semibold tracking-[-.065em] sm:text-7xl">
+                <h1 className="min-w-0 break-words text-[clamp(2rem,9vw,2.75rem)] font-semibold tracking-[-.065em] sm:text-7xl">
                   {target.displayName}, {calcAge(target.dateOfBirth)}
                 </h1>
                 {target.verified ? (

@@ -98,7 +98,7 @@ function ConversationView() {
   const other = detail.other;
   const otherOnline = isOnline(other?.lastActive, now);
   return (
-    <div className="chat-panel flex min-h-0 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#181816]">
+    <div className="chat-panel flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#181816] sm:rounded-[2rem]">
       <header className="flex items-center gap-3 border-b border-white/8 px-4 py-3.5">
         <Link to="/messages" aria-label="Back to conversations" className="icon-button md:hidden">
           <ArrowLeft className="h-4 w-4" />
@@ -114,7 +114,7 @@ function ConversationView() {
             ) : null}
           </div>
           <div className="min-w-0">
-            <h1 className="font-semibold tracking-[-.025em]">{other?.displayName}</h1>
+            <h1 className="truncate font-semibold tracking-[-.025em]">{other?.displayName}</h1>
             <p
               className={`mt-0.5 flex items-center gap-1.5 text-[10px] font-semibold ${
                 otherOnline ? "text-[#55d89a]" : "text-white/35"

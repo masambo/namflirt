@@ -221,7 +221,7 @@ function Onboarding() {
       <div className="page-width grid gap-12 pb-16 pt-5 lg:grid-cols-[.72fr_1.28fr]">
         <aside className="lg:sticky lg:top-10 lg:h-fit">
           <p className="eyebrow">Build your profile</p>
-          <h1 className="mt-5 text-5xl font-semibold leading-[.9] tracking-[-.065em] md:text-7xl">
+          <h1 className="mt-5 text-[clamp(2.5rem,12vw,3.5rem)] font-semibold leading-[.9] tracking-[-.065em] md:text-7xl">
             Make a first
             <br />
             <span className="text-primary">impression.</span>

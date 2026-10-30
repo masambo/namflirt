@@ -57,7 +57,7 @@ export function VerificationCard() {
   }
 
   return (
-    <section className="rounded-[2rem] border border-white/8 bg-[#191917] p-7">
+    <section className="rounded-2xl border border-white/8 bg-[#191917] p-5 sm:rounded-[2rem] sm:p-7">
       <div className="flex items-start gap-3">
         <BadgeCheck className="mt-1 h-6 w-6 shrink-0 text-primary" />
         <div>

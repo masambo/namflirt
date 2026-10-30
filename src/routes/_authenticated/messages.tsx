@@ -43,7 +43,9 @@ function MessagesLayout() {
       <div className="grid min-h-0 gap-4 md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)]">
         <aside className={detail ? "hidden md:block" : "block"}>
           <p className="eyebrow">Your inbox</p>
-          <h1 className="mt-3 text-5xl font-semibold tracking-[-.065em]">Messages</h1>
+          <h1 className="mt-3 text-[clamp(2.5rem,12vw,3.5rem)] font-semibold tracking-[-.065em] sm:text-5xl">
+            Messages
+          </h1>
           <label className="relative mt-5 block">
             <span className="sr-only">Search conversations</span>
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/25" />
