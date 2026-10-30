@@ -92,6 +92,20 @@ function Browse() {
         </p>
       </div>
 
+      {data?.viewer && !data.viewer.completed ? (
+        <section className="mb-5 flex flex-col gap-3 rounded-2xl border border-primary/25 bg-primary/[.07] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div className="min-w-0">
+            <p className="font-semibold">Welcome, {data.viewer.displayName}.</p>
+            <p className="mt-1 text-sm leading-relaxed text-white/50">
+              Add a few details and a photo to start meeting people.
+            </p>
+          </div>
+          <Link to="/onboarding" className="button-primary shrink-0 justify-center">
+            Finish your profile
+          </Link>
+        </section>
+      ) : null}
+
       {!data ? (
         <BrowseSkeleton />
       ) : ranked.length === 0 ? (

@@ -59,6 +59,13 @@ export default defineSchema({
     .index("by_from", ["fromProfileId"])
     .index("by_to", ["toProfileId"])
     .index("by_pair", ["fromProfileId", "toProfileId"]),
+  profileViews: defineTable({
+    viewerProfileId: v.id("profiles"),
+    targetProfileId: v.id("profiles"),
+    viewedAt: v.number(),
+  })
+    .index("by_target", ["targetProfileId", "viewedAt"])
+    .index("by_pair", ["viewerProfileId", "targetProfileId"]),
   conversations: defineTable({
     userA: v.id("profiles"),
     userB: v.id("profiles"),

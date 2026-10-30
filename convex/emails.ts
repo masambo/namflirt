@@ -19,9 +19,15 @@ export const sendActivityEmail = internalAction({
     to: v.string(),
     recipientName: v.string(),
     actorName: v.string(),
-    event: v.union(v.literal("match"), v.literal("message")),
+    actorProfileId: v.optional(v.id("profiles")),
+    actorPhotoUrl: v.optional(v.string()),
+    actorBio: v.optional(v.string()),
+    event: v.union(v.literal("like"), v.literal("match"), v.literal("message")),
   },
-  handler: async (_ctx, { to, recipientName, actorName, event }) => {
+  handler: async (
+    _ctx,
+    { to, recipientName, actorName, actorProfileId, actorPhotoUrl, actorBio, event },
+  ) => {
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM_EMAIL;
     if (!apiKey || !from) {
@@ -30,17 +36,33 @@ export const sendActivityEmail = internalAction({
     }
 
     const appUrl = (process.env.NAMFLIRT_APP_URL || "https://app.namflirt.com").replace(/\/$/, "");
-    const matched = event === "match";
-    const subject = matched
-      ? "You have a new match on namflirt."
-      : "You have a new message on namflirt.";
-    const heading = matched ? "It's a match!" : "A new message is waiting.";
-    const description = matched
-      ? `You and ${actorName} liked each other.`
-      : `${actorName} sent you a message. Sign in to read it.`;
-    const href = `${appUrl}${matched ? "/likes" : "/messages"}`;
+    const subject =
+      event === "match"
+        ? "You have a new match on namflirt."
+        : event === "like"
+          ? `${actorName} liked your profile on namflirt.`
+          : "You have a new message on namflirt.";
+    const heading =
+      event === "match"
+        ? "It's a match!"
+        : event === "like"
+          ? "Someone likes you."
+          : "A new message is waiting.";
+    const description =
+      event === "match"
+        ? `You and ${actorName} liked each other.`
+        : event === "like"
+          ? `${actorName} liked your profile. Here's a little introduction.`
+          : `${actorName} sent you a message. Sign in to read it.`;
+    const href = `${appUrl}${actorProfileId ? `/profile/${actorProfileId}` : event === "match" ? "/likes" : "/messages"}`;
     const safeName = escapeHtml(recipientName);
     const safeDescription = escapeHtml(description);
+    const safeActorName = escapeHtml(actorName);
+    const safeActorBio = escapeHtml(actorBio ?? "");
+    const photo =
+      actorPhotoUrl && /^https:\/\//i.test(actorPhotoUrl)
+        ? `<img src="${escapeHtml(actorPhotoUrl)}" alt="${safeActorName}" style="display:block;width:100%;max-height:260px;object-fit:cover;border-radius:12px;margin:0 0 18px" />`
+        : "";
 
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -59,6 +81,7 @@ export const sendActivityEmail = internalAction({
               <p style="margin:0 0 8px;color:#ffffff70;font-size:13px">Hi ${safeName},</p>
               <h1 style="margin:0 0 12px;font-size:26px">${heading}</h1>
               <p style="margin:0 0 26px;color:#ffffffb0;line-height:1.6">${safeDescription}</p>
+              ${event === "like" || event === "match" ? `${photo}<p style="margin:0 0 8px;font-size:18px;font-weight:bold">${safeActorName}</p>${safeActorBio ? `<p style="margin:0 0 24px;color:#ffffff90;line-height:1.6">${safeActorBio}</p>` : ""}` : ""}
               <a href="${href}" style="display:inline-block;padding:13px 20px;border-radius:9px;background:#ff4f87;color:#fff;font-weight:bold;text-decoration:none">Open namflirt.</a>
               <p style="margin:28px 0 0;color:#ffffff60;font-size:12px;line-height:1.6">Turn off activity emails in your namflirt. profile settings.</p>
             </div>

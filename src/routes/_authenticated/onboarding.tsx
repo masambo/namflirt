@@ -247,7 +247,7 @@ function Onboarding() {
             ))}
           </div>
         </aside>
-        <section className="rounded-[2.3rem] border border-white/10 bg-[#191917] p-5 sm:p-8 lg:p-10">
+        <section className="rounded-2xl border border-white/10 bg-[#191917] p-4 sm:rounded-[2.3rem] sm:p-8 lg:p-10">
           <div className="mb-8 flex gap-1.5 lg:hidden">
             {steps.map((label, index) => (
               <span

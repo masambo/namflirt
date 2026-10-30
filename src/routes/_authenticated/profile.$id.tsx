@@ -179,14 +179,14 @@ function ProfileView() {
           <ArrowLeft className="h-4 w-4" /> Discover
         </Link>
         <div className="mt-4 grid gap-5 lg:grid-cols-[1.05fr_.95fr]">
-          <section className="relative min-h-[650px] overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#1b1b18] lg:sticky lg:top-5 lg:h-[calc(100vh-3rem)] lg:min-h-[700px]">
+          <section className="relative min-h-[52dvh] overflow-hidden rounded-3xl border border-white/10 bg-[#1b1b18] sm:min-h-[650px] sm:rounded-[2.5rem] lg:sticky lg:top-5 lg:h-[calc(100vh-3rem)] lg:min-h-[700px]">
             <ProfilePhotoGallery photos={target.photos} name={target.displayName} />
             <span className="absolute right-5 top-5 rounded-full bg-primary px-3 py-2 text-xs font-black text-white shadow-[0_8px_24px_rgba(255,79,135,.3)]">
               {match.score}% fit
             </span>
             <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
               <div className="flex items-center gap-2">
-                <h1 className="text-5xl font-semibold tracking-[-.065em] sm:text-7xl">
+                <h1 className="min-w-0 break-words text-4xl font-semibold tracking-[-.065em] sm:text-7xl">
                   {target.displayName}, {calcAge(target.dateOfBirth)}
                 </h1>
                 {target.verified ? (

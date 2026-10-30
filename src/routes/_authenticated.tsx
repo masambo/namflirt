@@ -23,11 +23,6 @@ function AuthGate() {
   const viewer = useQuery(api.profiles.viewer, isAuthenticated ? {} : "skip") as
     (Profile & { preferences: unknown }) | null | undefined;
   const onboarding = pathname.startsWith("/onboarding");
-  const needsProfile =
-    isAuthenticated &&
-    viewer !== undefined &&
-    viewer?.status !== "deleted" &&
-    (!viewer || !viewer.completed || !viewer.photos.length);
 
   useEffect(() => {
     if (!isClerkLoaded || isLoading) return;
@@ -35,15 +30,12 @@ function AuthGate() {
       void navigate({ to: "/auth", replace: true });
       return;
     }
-    if (needsProfile && !onboarding) {
-      void navigate({ to: "/onboarding", replace: true });
-    }
-  }, [isClerkLoaded, isLoading, isSignedIn, isAuthenticated, navigate, needsProfile, onboarding]);
+  }, [isClerkLoaded, isLoading, isSignedIn, isAuthenticated, navigate]);
 
   if (!isClerkLoaded || isLoading || (isAuthenticated && viewer === undefined)) {
     return <AppLoader />;
   }
-  if (!isSignedIn || !isAuthenticated || (needsProfile && !onboarding)) return <AppLoader />;
+  if (!isSignedIn || !isAuthenticated) return <AppLoader />;
   if (viewer?.status === "suspended" || viewer?.status === "deleted") {
     return (
       <div className="grid min-h-screen place-items-center px-6 text-center">

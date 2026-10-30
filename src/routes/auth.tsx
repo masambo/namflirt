@@ -144,12 +144,13 @@ function ClerkSignIn() {
   const [mode, setMode] = useState<"signin" | "signup">(() =>
     new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "signin",
   );
+  const [signupName, setSignupName] = useState("");
   const viewer = useQuery(api.profiles.viewer, isAuthenticated ? {} : "skip") as
     Profile | null | undefined;
 
   useEffect(() => {
     if (!isSignedIn || !isAuthenticated || viewer === undefined) return;
-    void navigate({ to: viewer?.completed ? "/browse" : "/onboarding", replace: true });
+    void navigate({ to: "/browse", replace: true });
   }, [isSignedIn, isAuthenticated, navigate, viewer]);
 
   if (
@@ -181,7 +182,10 @@ function ClerkSignIn() {
           type="button"
           role="tab"
           aria-selected={mode === "signin"}
-          onClick={() => setMode("signin")}
+          onClick={() => {
+            localStorage.removeItem("namflirt-signup-name");
+            setMode("signin");
+          }}
           className={`h-9 rounded-md text-xs font-semibold transition-colors ${
             mode === "signin"
               ? "bg-white/[.09] text-white shadow-sm"
@@ -213,12 +217,36 @@ function ClerkSignIn() {
           appearance={clerkAppearance}
         />
       ) : (
-        <SignUp
-          routing="hash"
-          fallbackRedirectUrl="/auth"
-          signInFallbackRedirectUrl="/auth"
-          appearance={clerkAppearance}
-        />
+        <div className="space-y-4">
+          <label className="block">
+            <span className="field-label">What should we call you?</span>
+            <input
+              autoComplete="nickname"
+              maxLength={60}
+              required
+              value={signupName}
+              onChange={(event) => {
+                const name = event.target.value;
+                setSignupName(name);
+                if (name.trim().length >= 2)
+                  localStorage.setItem("namflirt-signup-name", name.trim());
+                else localStorage.removeItem("namflirt-signup-name");
+              }}
+              placeholder="Choose a display name"
+              className="field-input mt-2"
+            />
+          </label>
+          {signupName.trim().length >= 2 ? (
+            <SignUp
+              routing="hash"
+              fallbackRedirectUrl="/auth"
+              signInFallbackRedirectUrl="/auth"
+              appearance={clerkAppearance}
+            />
+          ) : (
+            <p className="text-xs text-white/40">Choose at least 2 characters to continue.</p>
+          )}
+        </div>
       )}
     </div>
   );

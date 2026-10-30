@@ -52,7 +52,7 @@ function Me() {
         </Link>
       </header>
       <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]">
-        <section className="relative min-h-[620px] overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#1b1b18]">
+        <section className="relative min-h-[55dvh] overflow-hidden rounded-3xl border border-white/10 bg-[#1b1b18] sm:min-h-[620px] sm:rounded-[2.5rem]">
           {profile.photos[0] ? (
             <img
               src={profile.photos[0]}
@@ -61,9 +61,9 @@ function Me() {
             />
           ) : null}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/15" />
-          <div className="absolute inset-x-0 bottom-0 p-7">
+          <div className="absolute inset-x-0 bottom-0 p-5 sm:p-7">
             <div className="flex items-center gap-2">
-              <h1 className="text-5xl font-semibold tracking-[-.065em]">
+              <h1 className="min-w-0 break-words text-4xl font-semibold tracking-[-.065em] sm:text-5xl">
                 {profile.displayName}, {calcAge(profile.dateOfBirth)}
               </h1>
               {profile.verified ? <BadgeCheck className="h-6 w-6 fill-primary text-black" /> : null}
@@ -130,7 +130,7 @@ function Me() {
             <div>
               <p className="text-sm font-semibold text-white">Email activity alerts</p>
               <p className="mt-1 text-xs leading-relaxed text-white/45">
-                Get an email when you have a new match or message.
+                Get an email when someone likes you, you match, or receive a message.
               </p>
             </div>
             <Switch

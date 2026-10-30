@@ -19,17 +19,19 @@ import { Brand } from "@/components/Brand";
 
 export const Route = createFileRoute("/_authenticated/likes")({ component: Likes });
 
-type Tab = "matches" | "received" | "sent";
+type Tab = "matches" | "received" | "viewed" | "sent";
 
 const tabs: Array<{ value: Tab; label: string; Icon: typeof Heart }> = [
   { value: "matches", label: "Matches", Icon: HeartHandshake },
   { value: "received", label: "Liked you", Icon: Heart },
+  { value: "viewed", label: "Viewed you", Icon: Sparkles },
   { value: "sent", label: "Sent likes", Icon: Send },
 ];
 
 function Likes() {
   const [tab, setTab] = useState<Tab>("matches");
-  const summary = useQuery(api.likes.summary, {}) as Record<Tab, Profile[]> | undefined;
+  const summary = useQuery(api.likes.summary, {}) as
+    { matches: Profile[]; received: Profile[]; viewed: Profile[]; sent: Profile[] } | undefined;
   const profiles = summary?.[tab] ?? [];
 
   return (
@@ -40,7 +42,7 @@ function Likes() {
         </div>
         <p className="eyebrow">Connections</p>
         <div className="mt-3 max-w-2xl">
-          <h1 className="text-4xl font-semibold leading-tight tracking-[-.05em] sm:text-5xl">
+          <h1 className="text-[clamp(2rem,9vw,3rem)] font-semibold leading-tight tracking-[-.05em]">
             Likes & matches
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/42">
@@ -191,6 +193,15 @@ function connectionState(tab: Tab) {
       action: "Open match",
     };
   }
+  if (tab === "viewed") {
+    return {
+      Icon: Sparkles,
+      badge: "Viewed you",
+      description: "They stopped by your profile. Visit theirs and see if you connect.",
+      note: "Profile view",
+      action: "View",
+    };
+  }
   if (tab === "received") {
     return {
       Icon: Heart,
@@ -235,7 +246,9 @@ function Empty({ tab }: { tab: Tab }) {
       ? "When the feeling is mutual, your matches will appear here."
       : tab === "received"
         ? "No new likes yet. A complete, honest profile makes all the difference."
-        : "You haven't sent any likes yet. Explore people who feel like your kind of energy.";
+        : tab === "viewed"
+          ? "When someone views your profile, they will show up here."
+          : "You haven't sent any likes yet. Explore people who feel like your kind of energy.";
   return (
     <div className="mt-6 max-w-md py-16">
       <span className="grid h-12 w-12 place-items-center rounded-lg border border-white/10 bg-white/[.025]">

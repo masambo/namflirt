@@ -23,12 +23,13 @@ export const summary = query({
   args: {},
   handler: async (ctx) => {
     const userId = await getClerkUserId(ctx);
-    if (!userId) return { received: [], sent: [], matches: [] };
+    if (!userId) return { received: [], sent: [], matches: [], viewed: [] };
     const profile = await ctx.db
       .query("profiles")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
-    if (!profile || !isProfileActive(profile)) return { received: [], sent: [], matches: [] };
+    if (!profile || !isProfileActive(profile))
+      return { received: [], sent: [], matches: [], viewed: [] };
     const receivedLikes = await ctx.db
       .query("likes")
       .withIndex("by_to", (q) => q.eq("toProfileId", profile._id))
@@ -37,6 +38,11 @@ export const summary = query({
       .query("likes")
       .withIndex("by_from", (q) => q.eq("fromProfileId", profile._id))
       .collect();
+    const profileViews = await ctx.db
+      .query("profileViews")
+      .withIndex("by_target", (q) => q.eq("targetProfileId", profile._id))
+      .order("desc")
+      .take(100);
     const receivedIds = new Set<Id<"profiles">>(receivedLikes.map((like) => like.fromProfileId));
     const sentIds = new Set<Id<"profiles">>(sentLikes.map((like) => like.toProfileId));
     const load = async (ids: Set<Id<"profiles">>) =>
@@ -48,6 +54,11 @@ export const summary = query({
       received: await load(receivedIds),
       sent: await load(sentIds),
       matches: await load(matches),
+      viewed: await load(
+        new Set(
+          profileViews.map((view) => view.viewerProfileId).filter((id) => id !== profile._id),
+        ),
+      ),
     };
   },
 });
@@ -120,12 +131,11 @@ export const toggle = mutation({
           type: "match",
         }),
       ]);
-      const recipients = [
-        { recipient: profile, actor: target },
-        { recipient: target, actor: profile },
-      ];
       await Promise.all(
-        recipients
+        [
+          { recipient: profile, actor: target },
+          { recipient: target, actor: profile },
+        ]
           .filter(
             ({ recipient }) =>
               recipient.email && recipient.emailNotifications !== false && !recipient.isDemo,
@@ -135,6 +145,9 @@ export const toggle = mutation({
               to: recipient.email!,
               recipientName: recipient.displayName,
               actorName: actor.displayName,
+              actorProfileId: actor._id,
+              actorPhotoUrl: actor.photos[0],
+              actorBio: actor.bio,
               event: "match",
             }),
           ),
@@ -145,6 +158,17 @@ export const toggle = mutation({
         actorProfileId: profile._id,
         type: "like",
       });
+      if (target.email && target.emailNotifications !== false && !target.isDemo) {
+        await ctx.scheduler.runAfter(0, internal.emails.sendActivityEmail, {
+          to: target.email,
+          recipientName: target.displayName,
+          actorName: profile.displayName,
+          actorProfileId: profile._id,
+          actorPhotoUrl: profile.photos[0],
+          actorBio: profile.bio,
+          event: "like",
+        });
+      }
     }
     return { liked: true, matched: Boolean(reciprocal) };
   },

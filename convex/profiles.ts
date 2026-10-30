@@ -192,8 +192,8 @@ export const viewer = query({
 });
 
 export const ensureViewer = mutation({
-  args: {},
-  handler: async (ctx) => {
+  args: { displayName: v.optional(v.string()) },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new ConvexError("You need to sign in first.");
 
@@ -211,13 +211,16 @@ export const ensureViewer = mutation({
       return existing._id;
     }
 
-    const fallbackName = identity.email?.split("@")[0] ?? "New member";
-    const displayName = (identity.name ?? identity.givenName ?? fallbackName).trim().slice(0, 60);
+    const displayName = (args.displayName ?? identity.name ?? identity.givenName ?? "")
+      .trim()
+      .slice(0, 60);
+    if (displayName.length < 2)
+      throw new ConvexError("Choose a display name with at least 2 characters to continue.");
 
     return ctx.db.insert("profiles", {
       userId: identity.subject,
       email: identity.email,
-      displayName: displayName || "New member",
+      displayName,
       languages: [],
       hobbies: [],
       lifestyle: [],
@@ -538,6 +541,19 @@ export const viewProfile = mutation({
       profileViewsUsedThisMonth: used + 1,
       messagesUsedThisMonth: viewer.usageMonth === month ? (viewer.messagesUsedThisMonth ?? 0) : 0,
     });
+    const priorView = await ctx.db
+      .query("profileViews")
+      .withIndex("by_pair", (q) =>
+        q.eq("viewerProfileId", viewer._id).eq("targetProfileId", profileId),
+      )
+      .unique();
+    if (priorView) await ctx.db.patch(priorView._id, { viewedAt: Date.now() });
+    else
+      await ctx.db.insert("profileViews", {
+        viewerProfileId: viewer._id,
+        targetProfileId: profileId,
+        viewedAt: Date.now(),
+      });
     return { status: "ready" as const, profile: withPlanDefaults(profile) };
   },
 });
