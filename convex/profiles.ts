@@ -4,7 +4,7 @@ import { getClerkUserId, isConfiguredAdmin, requireClerkUserId } from "./authHel
 import { currentUsageDay, currentUsageMonth, normalizePlan, planLimits } from "./plans";
 import { COUNTRY_CODES, matchesDiscovery } from "../shared/discovery";
 import { isProfileActive } from "../shared/profileStatus";
-import { isPlaceholderName, nameFromEmail } from "../shared/profileName";
+import { isPlaceholderName, nameFromEmail, removeNewMemberFromName } from "../shared/profileName";
 
 const PREMIUM_TRIAL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -206,27 +206,26 @@ export const ensureViewer = mutation({
     if (existing) {
       if (existing.status === "deleted") return existing._id;
       const fallbackName = nameFromEmail(identity.email);
-      const suppliedName = args.displayName?.trim().slice(0, 60);
+      const suppliedName = args.displayName
+        ? removeNewMemberFromName(args.displayName, identity.email).slice(0, 60)
+        : undefined;
+      const cleanedExistingName = removeNewMemberFromName(existing.displayName, identity.email);
       await ctx.db.patch(existing._id, {
         email: identity.email,
-        displayName: isPlaceholderName(existing.displayName)
+        displayName: isPlaceholderName(cleanedExistingName)
           ? suppliedName && !isPlaceholderName(suppliedName)
             ? suppliedName
-            : fallbackName || existing.displayName
-          : existing.displayName,
+            : fallbackName || cleanedExistingName
+          : cleanedExistingName,
         lastActive: Date.now(),
       });
       return existing._id;
     }
 
-    const displayName = (
-      args.displayName ??
-      identity.name ??
-      identity.givenName ??
-      nameFromEmail(identity.email)
-    )
-      .trim()
-      .slice(0, 60);
+    const displayName = removeNewMemberFromName(
+      args.displayName ?? identity.name ?? identity.givenName ?? nameFromEmail(identity.email),
+      identity.email,
+    ).slice(0, 60);
     if (displayName.length < 2)
       throw new ConvexError("Choose a display name with at least 2 characters to continue.");
 

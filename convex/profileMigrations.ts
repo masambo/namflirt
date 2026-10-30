@@ -2,7 +2,11 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { isPlaceholderName, nameFromEmail } from "../shared/profileName";
+import {
+  isPlaceholderName,
+  nameFromEmail,
+  removeNewMemberFromName,
+} from "../shared/profileName";
 import { isProfileActive } from "../shared/profileStatus";
 
 export const listPlaceholderBatch = internalMutation({
@@ -266,6 +270,68 @@ export const emailExistingLikesAndMatches = internalAction({
       scheduled += batch.scheduled;
       skipped += batch.skipped;
       if (batch.done) return { scheduled, skipped };
+      cursor = batch.cursor;
+    }
+  },
+});
+
+export const listNamesWithNewMemberParts = internalMutation({
+  args: { cursor: v.union(v.string(), v.null()) },
+  handler: async (ctx, { cursor }) => {
+    const page = await ctx.db.query("profiles").paginate({ numItems: 100, cursor });
+    const profiles = page.page
+      .map((profile) => ({
+        profileId: profile._id,
+        currentName: profile.displayName,
+        displayName: removeNewMemberFromName(profile.displayName, profile.email),
+      }))
+      .filter(
+        ({ currentName, displayName }) =>
+          currentName !== displayName &&
+          (/^\s*new\s+member\b/i.test(currentName) || /\bnew\s+member(?:\s+\d+)?\s*$/i.test(currentName)),
+      )
+      .map(({ profileId, displayName }) => ({ profileId, displayName }));
+    return { cursor: page.continueCursor, done: page.isDone, profiles };
+  },
+});
+
+export const applyNewMemberNameCleanup = internalMutation({
+  args: {
+    updates: v.array(
+      v.object({ profileId: v.id("profiles"), displayName: v.string() }),
+    ),
+  },
+  handler: async (ctx, { updates }) => {
+    let updated = 0;
+    for (const update of updates) {
+      const profile = await ctx.db.get(update.profileId);
+      if (!profile) continue;
+      const cleanedName = removeNewMemberFromName(profile.displayName, profile.email);
+      if (cleanedName !== update.displayName || cleanedName === profile.displayName) continue;
+      await ctx.db.patch(profile._id, { displayName: cleanedName });
+      updated += 1;
+    }
+    return updated;
+  },
+});
+
+export const removeNewMemberNameParts = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    let cursor: string | null = null;
+    let candidates = 0;
+    let updated = 0;
+    while (true) {
+      const batch: {
+        cursor: string | null;
+        done: boolean;
+        profiles: Array<{ profileId: Id<"profiles">; displayName: string }>;
+      } = await ctx.runMutation(internal.profileMigrations.listNamesWithNewMemberParts, { cursor });
+      candidates += batch.profiles.length;
+      updated += await ctx.runMutation(internal.profileMigrations.applyNewMemberNameCleanup, {
+        updates: batch.profiles,
+      });
+      if (batch.done) return { candidates, updated };
       cursor = batch.cursor;
     }
   },
