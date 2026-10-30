@@ -4,6 +4,7 @@ import { getClerkUserId, isConfiguredAdmin, requireClerkUserId } from "./authHel
 import { currentUsageDay, currentUsageMonth, normalizePlan, planLimits } from "./plans";
 import { COUNTRY_CODES, matchesDiscovery } from "../shared/discovery";
 import { isProfileActive } from "../shared/profileStatus";
+import { isPlaceholderName, nameFromEmail } from "../shared/profileName";
 
 const PREMIUM_TRIAL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -205,12 +206,14 @@ export const ensureViewer = mutation({
     if (existing) {
       if (existing.status === "deleted") return existing._id;
       const fallbackName = nameFromEmail(identity.email);
+      const suppliedName = args.displayName?.trim().slice(0, 60);
       await ctx.db.patch(existing._id, {
         email: identity.email,
-        displayName:
-          existing.displayName.trim().length < 2 || existing.displayName.trim() === "New member"
-            ? fallbackName || existing.displayName
-            : existing.displayName,
+        displayName: isPlaceholderName(existing.displayName)
+          ? suppliedName && !isPlaceholderName(suppliedName)
+            ? suppliedName
+            : fallbackName || existing.displayName
+          : existing.displayName,
         lastActive: Date.now(),
       });
       return existing._id;
@@ -249,14 +252,6 @@ export const ensureViewer = mutation({
     });
   },
 });
-
-function nameFromEmail(email?: string) {
-  return (email?.split("@")[0] ?? "")
-    .replace(/[._+-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 60);
-}
 
 export const touchActive = mutation({
   args: {},
