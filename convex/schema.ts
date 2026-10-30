@@ -55,6 +55,7 @@ export default defineSchema({
   likes: defineTable({
     fromProfileId: v.id("profiles"),
     toProfileId: v.id("profiles"),
+    emailNotified: v.optional(v.boolean()),
   })
     .index("by_from", ["fromProfileId"])
     .index("by_to", ["toProfileId"])

@@ -1,4 +1,5 @@
 import { internalAction } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
 function escapeHtml(value: string) {
@@ -23,10 +24,11 @@ export const sendActivityEmail = internalAction({
     actorPhotoUrl: v.optional(v.string()),
     actorBio: v.optional(v.string()),
     event: v.union(v.literal("like"), v.literal("match"), v.literal("message")),
+    retryCount: v.optional(v.number()),
   },
   handler: async (
-    _ctx,
-    { to, recipientName, actorName, actorProfileId, actorPhotoUrl, actorBio, event },
+    ctx,
+    { to, recipientName, actorName, actorProfileId, actorPhotoUrl, actorBio, event, retryCount = 0 },
   ) => {
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM_EMAIL;
@@ -92,6 +94,20 @@ export const sendActivityEmail = internalAction({
 
     if (!response.ok) {
       console.error(`Resend email failed with HTTP ${response.status}: ${await response.text()}`);
+      if (response.status === 429 && retryCount < 5) {
+        const retryAfter = Number(response.headers.get("retry-after"));
+        const delay = Math.max(1000, retryAfter * 1000) + Math.floor(Math.random() * 15000);
+        await ctx.scheduler.runAfter(delay, internal.emails.sendActivityEmail, {
+          to,
+          recipientName,
+          actorName,
+          actorProfileId,
+          actorPhotoUrl,
+          actorBio,
+          event,
+          retryCount: retryCount + 1,
+        });
+      }
     }
   },
 });

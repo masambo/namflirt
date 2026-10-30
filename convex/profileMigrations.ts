@@ -3,6 +3,7 @@ import type { Id } from "./_generated/dataModel";
 import { internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { isPlaceholderName, nameFromEmail } from "../shared/profileName";
+import { isProfileActive } from "../shared/profileStatus";
 
 export const listPlaceholderBatch = internalMutation({
   args: { cursor: v.union(v.string(), v.null()) },
@@ -195,6 +196,76 @@ export const removeNumbersFromEmailNames = internalAction({
       }));
       updated += await ctx.runMutation(internal.profileMigrations.applyCleanEmailNames, { updates });
       if (batch.done) return { candidates, updated };
+      cursor = batch.cursor;
+    }
+  },
+});
+
+export const emailExistingLikeBatch = internalMutation({
+  args: { cursor: v.union(v.string(), v.null()), startDelayMs: v.number() },
+  handler: async (ctx, { cursor, startDelayMs }) => {
+    const page = await ctx.db.query("likes").paginate({ numItems: 100, cursor });
+    let scheduled = 0;
+    let skipped = 0;
+    for (const like of page.page) {
+      if (like.emailNotified) continue;
+      const [actor, recipient] = await Promise.all([
+        ctx.db.get(like.fromProfileId),
+        ctx.db.get(like.toProfileId),
+      ]);
+      if (
+        !actor ||
+        !recipient ||
+        !isProfileActive(actor) ||
+        !isProfileActive(recipient) ||
+        !recipient.email ||
+        recipient.emailNotifications === false ||
+        recipient.isDemo
+      ) {
+        skipped += 1;
+        continue;
+      }
+      const reciprocal = await ctx.db
+        .query("likes")
+        .withIndex("by_pair", (q) =>
+          q.eq("fromProfileId", like.toProfileId).eq("toProfileId", like.fromProfileId),
+        )
+        .unique();
+      await ctx.scheduler.runAfter(startDelayMs + scheduled * 125, internal.emails.sendActivityEmail, {
+        to: recipient.email,
+        recipientName: recipient.displayName,
+        actorName: actor.displayName,
+        actorProfileId: actor._id,
+        actorPhotoUrl: actor.photos[0],
+        actorBio: actor.bio,
+        event: reciprocal ? "match" : "like",
+      });
+      await ctx.db.patch(like._id, { emailNotified: true });
+      scheduled += 1;
+    }
+    return { cursor: page.continueCursor, done: page.isDone, scheduled, skipped };
+  },
+});
+
+export const emailExistingLikesAndMatches = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    let cursor: string | null = null;
+    let scheduled = 0;
+    let skipped = 0;
+    while (true) {
+      const batch: {
+        cursor: string | null;
+        done: boolean;
+        scheduled: number;
+        skipped: number;
+      } = await ctx.runMutation(internal.profileMigrations.emailExistingLikeBatch, {
+        cursor,
+        startDelayMs: scheduled * 125,
+      });
+      scheduled += batch.scheduled;
+      skipped += batch.skipped;
+      if (batch.done) return { scheduled, skipped };
       cursor = batch.cursor;
     }
   },

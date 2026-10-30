@@ -109,7 +109,10 @@ export const toggle = mutation({
       throw new Error(
         `Free includes ${limit} likes per day. New members receive Premium for 30 days.`,
       );
-    await ctx.db.insert("likes", { fromProfileId: profile._id, toProfileId: profileId });
+    const likeId = await ctx.db.insert("likes", {
+      fromProfileId: profile._id,
+      toProfileId: profileId,
+    });
     await ctx.db.patch(profile._id, {
       usageDay: day,
       likesUsedToday: used + 1,
@@ -131,26 +134,30 @@ export const toggle = mutation({
           type: "match",
         }),
       ]);
+      const matchEmails = [
+        { recipient: profile, actor: target, likeId },
+        { recipient: target, actor: profile, likeId: reciprocal._id },
+      ].filter(
+        ({ recipient }) =>
+          recipient.email && recipient.emailNotifications !== false && !recipient.isDemo,
+      );
       await Promise.all(
-        [
-          { recipient: profile, actor: target },
-          { recipient: target, actor: profile },
-        ]
-          .filter(
-            ({ recipient }) =>
-              recipient.email && recipient.emailNotifications !== false && !recipient.isDemo,
-          )
-          .map(({ recipient, actor }) =>
-            ctx.scheduler.runAfter(0, internal.emails.sendActivityEmail, {
-              to: recipient.email!,
-              recipientName: recipient.displayName,
-              actorName: actor.displayName,
-              actorProfileId: actor._id,
-              actorPhotoUrl: actor.photos[0],
-              actorBio: actor.bio,
-              event: "match",
-            }),
-          ),
+        matchEmails.map(({ recipient, actor }) =>
+          ctx.scheduler.runAfter(0, internal.emails.sendActivityEmail, {
+            to: recipient.email!,
+            recipientName: recipient.displayName,
+            actorName: actor.displayName,
+            actorProfileId: actor._id,
+            actorPhotoUrl: actor.photos[0],
+            actorBio: actor.bio,
+            event: "match",
+          }),
+        ),
+      );
+      await Promise.all(
+        matchEmails.map(({ likeId: notifiedLikeId }) =>
+          ctx.db.patch(notifiedLikeId, { emailNotified: true }),
+        ),
       );
     } else {
       await createNotification(ctx, {
@@ -168,6 +175,7 @@ export const toggle = mutation({
           actorBio: profile.bio,
           event: "like",
         });
+        await ctx.db.patch(likeId, { emailNotified: true });
       }
     }
     return { liked: true, matched: Boolean(reciprocal) };
