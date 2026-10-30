@@ -204,14 +204,24 @@ export const ensureViewer = mutation({
 
     if (existing) {
       if (existing.status === "deleted") return existing._id;
+      const fallbackName = nameFromEmail(identity.email);
       await ctx.db.patch(existing._id, {
         email: identity.email,
+        displayName:
+          existing.displayName.trim().length < 2 || existing.displayName.trim() === "New member"
+            ? fallbackName || existing.displayName
+            : existing.displayName,
         lastActive: Date.now(),
       });
       return existing._id;
     }
 
-    const displayName = (args.displayName ?? identity.name ?? identity.givenName ?? "")
+    const displayName = (
+      args.displayName ??
+      identity.name ??
+      identity.givenName ??
+      nameFromEmail(identity.email)
+    )
       .trim()
       .slice(0, 60);
     if (displayName.length < 2)
@@ -239,6 +249,14 @@ export const ensureViewer = mutation({
     });
   },
 });
+
+function nameFromEmail(email?: string) {
+  return (email?.split("@")[0] ?? "")
+    .replace(/[._+-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 60);
+}
 
 export const touchActive = mutation({
   args: {},
