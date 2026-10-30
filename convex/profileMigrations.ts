@@ -130,3 +130,72 @@ export const backfillPlaceholderNames = internalAction({
     }
   },
 });
+
+function legacyEmailName(email: string) {
+  const prefix = email
+    .split("@")[0]
+    .replace(/[._+-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 60);
+  return prefix.replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
+}
+
+export const listNumberedEmailNames = internalMutation({
+  args: { cursor: v.union(v.string(), v.null()) },
+  handler: async (ctx, { cursor }) => {
+    const page = await ctx.db.query("profiles").paginate({ numItems: 100, cursor });
+    const profiles = page.page
+      .filter(
+        (profile) =>
+          !!profile.email &&
+          /\d/.test(profile.displayName) &&
+          legacyEmailName(profile.email) === profile.displayName,
+      )
+      .map((profile) => ({ profileId: profile._id, email: profile.email! }));
+    return { cursor: page.continueCursor, done: page.isDone, profiles };
+  },
+});
+
+export const applyCleanEmailNames = internalMutation({
+  args: {
+    updates: v.array(
+      v.object({ profileId: v.id("profiles"), displayName: v.string() }),
+    ),
+  },
+  handler: async (ctx, { updates }) => {
+    let updated = 0;
+    for (const update of updates) {
+      const profile = await ctx.db.get(update.profileId);
+      if (!profile || !profile.email || !/\d/.test(profile.displayName)) continue;
+      if (legacyEmailName(profile.email) !== profile.displayName) continue;
+      await ctx.db.patch(profile._id, { displayName: update.displayName });
+      updated += 1;
+    }
+    return updated;
+  },
+});
+
+export const removeNumbersFromEmailNames = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    let cursor: string | null = null;
+    let candidates = 0;
+    let updated = 0;
+    while (true) {
+      const batch: {
+        cursor: string | null;
+        done: boolean;
+        profiles: Array<{ profileId: Id<"profiles">; email: string }>;
+      } = await ctx.runMutation(internal.profileMigrations.listNumberedEmailNames, { cursor });
+      candidates += batch.profiles.length;
+      const updates = batch.profiles.map((profile) => ({
+        profileId: profile.profileId,
+        displayName: nameFromEmail(profile.email),
+      }));
+      updated += await ctx.runMutation(internal.profileMigrations.applyCleanEmailNames, { updates });
+      if (batch.done) return { candidates, updated };
+      cursor = batch.cursor;
+    }
+  },
+});

@@ -1,6 +1,7 @@
 export function nameFromEmail(email?: string) {
   const prefix = (email?.split("@")[0] ?? "")
     .replace(/[._+-]+/g, " ")
+    .replace(/\d+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 60);
