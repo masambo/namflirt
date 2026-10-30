@@ -38,6 +38,22 @@ npm run dev
 
 The browser needs `VITE_CONVEX_URL` and `VITE_CLERK_PUBLISHABLE_KEY`; both are public client configuration. Keep Clerk secret keys out of every `VITE_*` variable. Convex validates Clerk sessions using the issuer domain configured on the Convex deployment.
 
+## Email notifications
+
+Convex sends transactional Resend emails for new matches and messages. Members can turn off
+activity emails from **Your profile**. Add these values to the Convex deployment environment
+(Convex dashboard → Settings → Environment Variables); keep the API key out of `.env` files and
+frontend variables:
+
+```text
+RESEND_API_KEY
+RESEND_FROM_EMAIL=namflirt. <notifications@your-verified-domain.com>
+NAMFLIRT_APP_URL=https://app.namflirt.com
+```
+
+Verify the sender domain in Resend before using its address. Deploy the updated Convex functions
+with `npx convex dev` for development or `npx convex deploy` for production.
+
 ## Admin dashboard
 
 Admin access is controlled on the Convex server with a comma-separated allowlist. Prefer email

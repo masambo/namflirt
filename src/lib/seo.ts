@@ -1,6 +1,6 @@
 const configuredSiteUrl = import.meta.env.VITE_SITE_URL as string | undefined;
 
-export const SITE_URL = (configuredSiteUrl || "https://namflirt.com").replace(/\/$/, "");
+export const SITE_URL = (configuredSiteUrl || "https://app.namflirt.com").replace(/\/$/, "");
 export const SOCIAL_IMAGE_URL = `${SITE_URL}/images/someone-worth-meeting.png`;
 
 type StructuredData = Record<string, unknown>;

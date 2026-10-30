@@ -1,5 +1,5 @@
 import { SignIn, SignUp, useAuth } from "@clerk/react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useQuery } from "convex/react";
 import { ArrowLeft, KeyRound, LoaderCircle, LogOut, RefreshCw, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -104,12 +104,12 @@ function AuthPage() {
           <div className="lg:hidden">
             <Brand />
           </div>
-          <Link
-            to="/"
+          <a
+            href="https://namflirt.com"
             className="inline-flex items-center gap-2 text-sm text-white/45 transition-colors hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" /> Back
-          </Link>
+          </a>
         </div>
 
         <div className="mx-auto flex w-full max-w-[24rem] flex-1 flex-col justify-center py-6 sm:py-8">

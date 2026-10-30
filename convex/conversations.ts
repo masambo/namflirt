@@ -4,6 +4,7 @@ import { isProfileActive } from "../shared/profileStatus";
 import { getClerkUserId } from "./authHelpers";
 import { currentUsageMonth, normalizePlan, planLimits } from "./plans";
 import { createNotification } from "./notificationHelpers";
+import { internal } from "./_generated/api";
 
 async function viewerProfile(ctx: MutationCtx) {
   const userId = await getClerkUserId(ctx);
@@ -193,6 +194,14 @@ export const send = mutation({
       conversationId,
       messagePreview: clean.slice(0, 80),
     });
+    if (recipient.email && recipient.emailNotifications !== false && !recipient.isDemo) {
+      await ctx.scheduler.runAfter(0, internal.emails.sendActivityEmail, {
+        to: recipient.email,
+        recipientName: recipient.displayName,
+        actorName: profile.displayName,
+        event: "message",
+      });
+    }
     return { status: "sent" as const, messageId: id };
   },
 });

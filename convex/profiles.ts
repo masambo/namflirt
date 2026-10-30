@@ -251,6 +251,20 @@ export const touchActive = mutation({
   },
 });
 
+export const setEmailNotifications = mutation({
+  args: { enabled: v.boolean() },
+  handler: async (ctx, { enabled }) => {
+    const userId = await requireClerkUserId(ctx);
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    if (!profile || !isProfileActive(profile))
+      throw new ConvexError("Your profile is not available.");
+    await ctx.db.patch(profile._id, { emailNotifications: enabled });
+  },
+});
+
 export const list = query({
   args: { discoveryScope: v.optional(v.union(v.literal("local"), v.literal("international"))) },
   handler: async (ctx, { discoveryScope }) => {

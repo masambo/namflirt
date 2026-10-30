@@ -5,6 +5,7 @@ export default defineSchema({
   profiles: defineTable({
     userId: v.optional(v.string()),
     email: v.optional(v.string()),
+    emailNotifications: v.optional(v.boolean()),
     displayName: v.string(),
     dateOfBirth: v.optional(v.string()),
     gender: v.optional(v.string()),

@@ -5,6 +5,7 @@ import { isProfileActive } from "../shared/profileStatus";
 import { getClerkUserId } from "./authHelpers";
 import { currentUsageDay, normalizePlan, planLimits } from "./plans";
 import { createNotification } from "./notificationHelpers";
+import { internal } from "./_generated/api";
 
 async function viewerProfile(ctx: MutationCtx) {
   const userId = await getClerkUserId(ctx);
@@ -119,6 +120,25 @@ export const toggle = mutation({
           type: "match",
         }),
       ]);
+      const recipients = [
+        { recipient: profile, actor: target },
+        { recipient: target, actor: profile },
+      ];
+      await Promise.all(
+        recipients
+          .filter(
+            ({ recipient }) =>
+              recipient.email && recipient.emailNotifications !== false && !recipient.isDemo,
+          )
+          .map(({ recipient, actor }) =>
+            ctx.scheduler.runAfter(0, internal.emails.sendActivityEmail, {
+              to: recipient.email!,
+              recipientName: recipient.displayName,
+              actorName: actor.displayName,
+              event: "match",
+            }),
+          ),
+      );
     } else {
       await createNotification(ctx, {
         recipientProfileId: profileId,

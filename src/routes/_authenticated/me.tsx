@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useClerk } from "@clerk/react";
 import {
   BadgeCheck,
@@ -20,11 +20,13 @@ import type { Profile } from "@/lib/types";
 import { Brand } from "@/components/Brand";
 import { VerificationCard } from "@/components/VerificationCard";
 import { InstallApp } from "@/components/InstallApp";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_authenticated/me")({ component: Me });
 
 function Me() {
   const profile = useQuery(api.profiles.viewer, {}) as Profile | null | undefined;
+  const setEmailNotifications = useMutation(api.profiles.setEmailNotifications);
   const adminAccess = useQuery(api.admin.access, {}) as { isAdmin: boolean } | undefined;
   const { signOut } = useClerk();
   const navigate = useNavigate();
@@ -124,6 +126,19 @@ function Me() {
             </div>
           </div>
           <VerificationCard />
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/8 bg-[#191917] p-5">
+            <div>
+              <p className="text-sm font-semibold text-white">Email activity alerts</p>
+              <p className="mt-1 text-xs leading-relaxed text-white/45">
+                Get an email when you have a new match or message.
+              </p>
+            </div>
+            <Switch
+              aria-label="Email activity alerts"
+              checked={profile.emailNotifications !== false}
+              onCheckedChange={(enabled) => void setEmailNotifications({ enabled })}
+            />
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {adminAccess?.isAdmin ? (
               <Link to="/admin" className="settings-row sm:col-span-2">

@@ -35,6 +35,7 @@ export interface Profile {
   completed: boolean;
   isDemo: boolean;
   email?: string;
+  emailNotifications?: boolean;
   status?: "active" | "suspended" | "deleted";
   moderationNote?: string;
   plan?: "free" | "premium" | "vip";
